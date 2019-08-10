@@ -1,14 +1,13 @@
-import React from 'react';
-import '../App.css';
-+ import { Grommet } from 'grommet';
-
-
+import React from 'react'
+import { Grommet } from 'grommet'
+import grommet from 'grommet/themes'
+import AuthForm from './AuthForm'
 const App: React.FC = () => {
   return (
-    <div className="App">
- 
-    </div>
-  );
+    <Grommet theme={grommet}>
+      <AuthForm/>
+    </Grommet>
+  )
 }
 
 export default App;
