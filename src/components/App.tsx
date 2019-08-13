@@ -3,7 +3,7 @@ import { Grommet } from 'grommet'
 import grommet from 'grommet/themes'
 import { BrowserRouter as Router, Route } from 'react-router-dom'
 
-import AuthForm from './AuthForm'
+import AuthForm from './AuthForm.jsx'
 import Profile from './Profile'
 
 const App: React.FC = () => {
