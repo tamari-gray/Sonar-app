@@ -2,31 +2,37 @@ import React, { Component } from "react"
 import { Redirect } from "react-router-dom"
 import { Box, FormField, TextInput, Form, Button } from "grommet"
 
-export default class FormFieldTextInput extends Component {
+
+import withFirebaseAuth from 'react-with-firebase-auth'
+import 'firebase/auth';
+import { firebaseAppAuth, providers } from '../firebase';
+
+class AuthForm extends Component {
   state = {
     email: '',
     password: '',
-    auth: false,
   }
 
-  handleChange = (e: any) => {
+  handleChange = (e) => {
     this.setState({
       [e.target.name]: e.target.value
     })
   }
 
-  handleSubmit = (e: any) => {
+  handleSubmit = (e) => {
     e.preventDefault()
-    this.setState({
-      auth: true
-    })
-
-    // firebase auth
+    this.props.signInWithEmailAndPassword(this.state.email, this.state.password)
+      .catch(function (error) {
+        console.log(error.code)
+        console.log(error.message)
+      })
   }
 
+
   render() {
-    const { email, password, auth } = this.state
-    if (auth) {
+    const { email, password } = this.state
+    const { signInWithGoogle, user } = this.props
+    if (user) {
       return <Redirect to="/profile" />
     } else {
       return (
@@ -62,8 +68,15 @@ export default class FormFieldTextInput extends Component {
               <Button type="submit" disabled primary label="Login" />
             </Box>
           </Form>
+          <Box margin={{ top: "medium" }} >
+            <Button onClick={signInWithGoogle} primary label="Sign in with google" />
+          </Box>
         </Box>
       )
     }
   }
 }
+export default withFirebaseAuth({
+  providers,
+  firebaseAppAuth,
+})(AuthForm)
