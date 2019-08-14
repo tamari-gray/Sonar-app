@@ -1,10 +1,9 @@
 import React, { Component } from 'react'
-import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
-import { Redirect, Link } from "react-router-dom"
+import { Link } from "react-router-dom"
 import { Box, FormField, TextInput, Form, Button } from "grommet"
 
-export class SignUp extends Component {
+class SignUp extends Component {
 
   state = {
     email: '',

@@ -1,17 +1,16 @@
 import React, { Component } from 'react'
-import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
-import { Redirect, Link } from "react-router-dom"
+import { Link } from "react-router-dom"
 import { Box, FormField, TextInput, Form, Button } from "grommet"
 
-interface Props {
+// interface Props {
 
-}
-interface State {
+// }
+// interface State {
 
-}
+// }
 
-export class Login extends Component<Props, State> {
+class Login extends Component<{}> {
   state = {
     email: '',
     password: ''

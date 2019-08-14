@@ -1,9 +1,9 @@
 import React from 'react'
 import { render } from 'react-dom'
-import { Provider } from 'react-redux'
 import { createStore, applyMiddleware, compose } from 'redux'
 import thunkMiddleware from 'redux-thunk'
 import rootReducer from './reducers/index'
+import { Provider } from 'react-redux'
 
 import './index.css';
 import App from './components/App';
@@ -20,11 +20,13 @@ const store = createStore(rootReducer, composeEnhancers(
   applyMiddleware(thunkMiddleware)
 ))
 
-render(
-  <Provider store={store}>
-    <App />
-  </Provider>,
-  document.getElementById('root')
-)
+document.addEventListener('DOMContentLoaded', () => {
+  render(
+    <Provider store={store}>
+      <App />
+    </Provider>,
+    document.getElementById('root')
+  )
+})
 
 serviceWorker.unregister();
