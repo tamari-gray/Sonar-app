@@ -1,9 +1,10 @@
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
-import { Box } from 'grommet';
+import { Box, RoutedButton } from 'grommet';
 
-export class LobbyWaiting extends Component {
+class LobbyWaiting extends Component {
   state = {
+    gameId: 3289,
     players: [
       'tam',
       'jason',
@@ -15,9 +16,16 @@ export class LobbyWaiting extends Component {
   
   render() {
     return (
-      <Box>
-        
+      <Box align="center">
+        players:
+        {
+          this.state.players.map(player => {
+            return <h4>{player}</h4>
+          })
+        } 
+        <RoutedButton path={`/game/${this.state.gameId}`} label="Play!" primary/>
       </Box>
+
     )
   }
 }

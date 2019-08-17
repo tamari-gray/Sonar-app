@@ -34,13 +34,14 @@ export class Lobby extends Component {
   render() {
     return (
       <Box >
-        <Box alignContent="center" >
+        <Box width="medium" alignContent="center" >
           <h1>Join a game</h1>
           {
             this.state.games.map(game => {
               return <Box
                 border="all"
                 height="small"
+                width="medium"small
               >
 
                 <h3>{"created by " + game.creator} <br />
@@ -49,13 +50,14 @@ export class Lobby extends Component {
                     game.private && 'private'
                   }
                 </h3>
-                <RoutedButton path={`/lobby/${this.state.gameId}`} primary label="Join" />
+                <RoutedButton path={`/lobby/${game.id}`} primary label="Join" />
               </Box>
             })
           }
         </Box>
           <h2>Create a game</h2>
-          <RoutedButton path={`/lobby/${this.state.gameId}`} primary label="Create" />
+          {/* need to create a game on firebase => return doc id => use doc.id as route */}
+          {/* <RoutedButton path={`/lobby/${gameId}`} primary label="Create" /> */}
       </Box>
     )
   }
