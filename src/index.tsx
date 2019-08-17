@@ -1,7 +1,7 @@
 import React from 'react'
 import { render } from 'react-dom'
 import { createStore, applyMiddleware, compose } from 'redux'
-import thunkMiddleware from 'redux-thunk'
+import thunk from 'redux-thunk'
 import rootReducer from './reducers/index'
 import { Provider } from 'react-redux'
 
@@ -17,7 +17,7 @@ declare global {
 
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose
 const store = createStore(rootReducer, composeEnhancers(
-  applyMiddleware(thunkMiddleware)
+  applyMiddleware(thunk)
 ))
 
 document.addEventListener('DOMContentLoaded', () => {
