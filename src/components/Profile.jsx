@@ -7,15 +7,15 @@ class Profile extends Component {
   state = {}
 
   componentDidMount() {
-    // this.props.dispatch(getUser(this.props.user.UID))
+    this.props.dispatch(getUser(this.props.user.UID))
   }
 
   render() {
+    const { firstName, lastName } = this.props.user
     return (
       <Box align="center">
         <Box>
-          user profile page <br />
-          {this.props.user}
+          <h3> {firstName + ' ' + lastName}</h3>
         </Box>
         <RoutedButton path="/lobby" primary label="play" />
       </Box>
