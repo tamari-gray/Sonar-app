@@ -1,28 +1,29 @@
 import React, { Component } from 'react'
-import { Box, Button } from 'grommet';
-import { Link } from 'react-router-dom';
+import { Box, RoutedButton } from 'grommet';
 import { connect } from 'react-redux'
+import { getUser } from '../actions/user'
 
 class Profile extends Component {
   state = {}
 
+  componentDidMount() {
+    this.props.dispatch(getUser(this.props.user.UID))
+  }
+
   render() {
+    const { firstName, lastName } = this.props.user
     return (
-      <Box>
+      <Box align="center">
         <Box>
-          user profile: {
-            this.props.user
-          }
+          <h3> {firstName + ' ' + lastName}</h3>
         </Box>
-        <Link to="/play">
-          <Button primary label="play"/>
-        </Link>
+        <RoutedButton path="/lobby" primary label="play" />
       </Box>
     )
   }
 }
-const mapStateToProps = (state) => ({
-  user: state.user
+const mapStateToProps = ({ user }) => ({
+  user
 })
 
 export default connect(mapStateToProps)(Profile)

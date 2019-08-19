@@ -1,12 +1,14 @@
-const initialState = 'poo'
+import { GET_USER, GET_USER_INFO } from '../actions/user'
+
+const initialState = null
 
 export default (state = initialState, { type, payload }) => {
   switch (type) {
-
-  case 'GET_USER_INFO':
-    return payload 
-
-  default:
-    return state
+    case GET_USER:
+      return { UID: payload }
+    case GET_USER_INFO:
+      return { ...state, ...payload }
+    default:
+      return state
   }
 }
