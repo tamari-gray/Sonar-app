@@ -5,10 +5,10 @@ const initialState = null
 export default (state = initialState, { type, payload }) => {
   switch (type) {
 
-  case GET_MATCHES:
-    return payload
+    case GET_MATCHES:
+      return payload
 
-  default:
-    return state
+    default:
+      return state
   }
 }
