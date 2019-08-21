@@ -1,3 +1,10 @@
+/* TODO 
+* - [] fetch games from firebase
+* - [x] make list smaller and pretty 
+* - [] 
+*/
+
+
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet';
@@ -40,24 +47,54 @@ export class Lobby extends Component {
 
   handleSubmit = e => {
     e.preventDefault()
-    const { dispatch, user:{ firstName, UID } } = this.props
-    const {name, password} = this.state
-    dispatch(createMatch(firstName, UID, name, password ))
+    const { dispatch, user: { firstName, UID } } = this.props
+    const { name, password } = this.state
+    dispatch(createMatch(firstName, UID, name, password))
   }
 
   render() {
     return (
-      <Box >
-        <Box width="medium" alignContent="center" >
+      <Box
+        direction="column"
+        justify="center"
+        align="center"
+        pad="xlarge"
+        gap="large"
+      >
+        <h1>Create a game</h1>
+        {/* need to create a game on firebase => return doc id => use doc.id as route */}
+        {/* <Button path={`/lobby/${gameId}`} primary label="Create" /> */}
+        <Box
+          pad="medium"
+          border={{ color: 'brand', size: 'large' }}
+          elevation="medium"
+          round="large"
+          width="medium"
+          align="center"
+        >
+          <Form
+            style={{ margin: '1.5em 1.5em 0 1.5em ' }}
+            onSubmit={this.handleSubmit}
+          >
+            <FormField name="name" label="Match name" onChange={this.handleInput} />
+            <FormField type="password" name="password" label="password" onChange={this.handleInput} />
+            <Button type="submit" primary label="Create game" />
+          </Form>
+        </Box>
+        <Box width="medium" align="center" >
           <h1>Join a game</h1>
           {
             this.state.games.map(game => {
               return <Box
-                border="all"
-                height="small"
-                width="medium" small
+                pad="small"
+                border={{ color: 'primary', size: 'large' }}
+                elevation="small"
+                round="large"
+                width="medium"
+                align="center"
+                direction="row-responsive"
+                style={{marginTop: '1.5em'}}
               >
-
                 <h3>{"created by " + game.creator} <br />
                   {'  players = ' + game.players} <br />
                   {
@@ -69,31 +106,12 @@ export class Lobby extends Component {
             })
           }
         </Box>
-        <h2>Create a game</h2>
-        {/* need to create a game on firebase => return doc id => use doc.id as route */}
-        {/* <Button path={`/lobby/${gameId}`} primary label="Create" /> */}
-        <Box
-          pad="medium"
-          border={{ color: 'brand', size: 'large' }}
-          elevation="medium"
-          round="large"
-          width="medium"
-        >
-          <Form
-            style={{ margin: '1.5em 1.5em 0 1.5em ' }}
-            onSubmit={this.handleSubmit}
-          >
-            <FormField name="name" label="Match name" onChange={this.handleInput}/>
-            <FormField type="password" name="password" label="password" onChange={this.handleInput}/>
-            <Button type="submit" primary label="Create game" />
-          </Form>
-        </Box>
       </Box>
     )
   }
 }
 
-const mapStateToProps = ({user}) => ({
+const mapStateToProps = ({ user }) => ({
   user
 })
 
