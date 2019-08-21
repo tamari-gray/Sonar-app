@@ -1,3 +1,4 @@
+// TODO: get match from db
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Button } from 'grommet';
