@@ -2,9 +2,9 @@ import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet';
 import { createMatch } from '../../actions/matches';
-import { Link } from 'react-router-dom';
+import { Link, Redirect } from 'react-router-dom';
 
-export class Lobby extends Component {
+class Lobby extends Component {
   state = {
     name: '',
     password: '',
@@ -40,65 +40,76 @@ export class Lobby extends Component {
 
   handleSubmit = e => {
     e.preventDefault()
-    const { dispatch, user:{ firstName, UID } } = this.props
-    const {name, password} = this.state
-    dispatch(createMatch(firstName, UID, name, password ))
+    const { dispatch, user: { firstName, UID } } = this.props
+    const { name, password } = this.state
+    dispatch(createMatch(firstName, UID, name, password))
   }
 
   render() {
-    return (
-      <Box >
-        <Box width="medium" alignContent="center" >
-          <h1>Join a game</h1>
-          {
-            this.state.games.map(game => {
-              return <Box
-                border="all"
-                height="small"
-                width="medium" small
-              >
-
-                <h3>{"created by " + game.creator} <br />
-                  {'  players = ' + game.players} <br />
-                  {
-                    game.private && 'private'
-                  }
-                </h3>
-                <Button as={Link} to={`/lobby/${game.id}`} primary label="Join" />
-              </Box>
-            })
-          }
-        </Box>
-        <h2>Create a game</h2>
-        {/* need to create a game on firebase => return doc id => use doc.id as route */}
-        {/* <Button path={`/lobby/${gameId}`} primary label="Create" /> */}
+    const { id } = this.props.match
+    if (id) {
+      return <Redirect to={`lobby/${id}`} />
+    } else {
+      return (
         <Box
-          pad="medium"
-          border={{ color: 'brand', size: 'large' }}
-          elevation="medium"
-          round="large"
-          width="medium"
+          direction="column"
+          justify="center"
+          align="center"
+          pad="xlarge"
+          gap="large"
         >
-          <Form
-            style={{ margin: '1.5em 1.5em 0 1.5em ' }}
-            onSubmit={this.handleSubmit}
+          <h1>Create a game</h1>
+          <Box
+            pad="medium"
+            border={{ color: 'brand', size: 'large' }}
+            elevation="medium"
+            round="large"
+            width="medium"
+            align="center"
           >
-            <FormField name="name" label="Match name" onChange={this.handleInput}/>
-            <FormField type="password" name="password" label="password" onChange={this.handleInput}/>
-            <Button type="submit" primary label="Create game" />
-          </Form>
+            <Form
+              style={{ margin: '1.5em 1.5em 0 1.5em ' }}
+              onSubmit={this.handleSubmit}
+            >
+              <FormField name="name" label="Match name" onChange={this.handleInput} />
+              <FormField type="password" name="password" label="password" onChange={this.handleInput} />
+              <Button type="submit" primary label="Create game" />
+            </Form>
+          </Box>
+          <Box width="medium" align="center" >
+            <h1>Join a game</h1>
+            {
+              this.state.games.map(game => {
+                return <Box
+                  pad="small"
+                  border={{ color: 'primary', size: 'large' }}
+                  elevation="small"
+                  round="large"
+                  width="medium"
+                  align="center"
+                  direction="row-responsive"
+                  style={{ marginTop: '1.5em' }}
+                >
+                  <h3>{"created by " + game.creator} <br />
+                    {'  players = ' + game.players} <br />
+                    {
+                      game.private && 'private'
+                    }
+                  </h3>
+                  <Button as={Link} to={`/lobby/${game.id}`} primary label="Join" />
+                </Box>
+              })
+            }
+          </Box>
         </Box>
-      </Box>
-    )
+      )
+    }
   }
 }
 
-const mapStateToProps = ({user}) => ({
-  user
+const mapStateToProps = ({ user, match }) => ({
+  user,
+  match
 })
 
-const mapDispatchToProps = {
-
-}
-
-export default connect(mapStateToProps, mapDispatchToProps)(Lobby)
+export default connect(mapStateToProps)(Lobby)
