@@ -6,7 +6,7 @@ export default (state = initialState, { type, payload }) => {
   switch (type) {
 
     case CREATED_MATCH:
-      return { id: payload, created: true }
+      return { id: payload }
 
     default:
       return state
