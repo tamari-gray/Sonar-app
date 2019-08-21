@@ -10,13 +10,14 @@ export function createMatch(creatorName, creatorId, matchName, password) {
       creatorName,
       creatorId,
       matchName,
-      password
+      password,
+      matchId: newMatch.key
     })
       .then(() => {
         db.ref('matches').once('value', snapshot => {
           dispatch({
             type: CREATED_MATCH,
-            payload: newMatch.key 
+            payload: newMatch.key
           })
         })
       })
@@ -26,9 +27,9 @@ export function createMatch(creatorName, creatorId, matchName, password) {
 
 export function getMatches() {
   return dispatch => db.ref('matches').on('value', (snapshot) => {
-    dispatch({
-      type: GET_MATCHES,
-      payload: snapshot.val()
-    })
+  dispatch({
+    type: GET_MATCHES,
+    payload: snapshot.val()
   })
+})
 }
