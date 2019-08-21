@@ -1,7 +1,8 @@
 import React, { Component } from 'react'
-import { Box, RoutedButton } from 'grommet';
+import { Box, Button } from 'grommet';
 import { connect } from 'react-redux'
 import { getUser } from '../actions/user'
+import { Link } from 'react-router-dom';
 
 class Profile extends Component {
   state = {}
@@ -15,9 +16,9 @@ class Profile extends Component {
     return (
       <Box align="center">
         <Box>
-          <h3> {firstName + ' ' + lastName}</h3>
+          <h3> {firstName + ' ' + lastName} </h3>
         </Box>
-        <RoutedButton path="/lobby" primary label="play" />
+        <Button as={Link} to="/lobby" primary label="play" /> 
       </Box>
     )
   }

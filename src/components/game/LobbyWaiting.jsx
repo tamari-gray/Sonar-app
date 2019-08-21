@@ -1,6 +1,7 @@
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
-import { Box, RoutedButton } from 'grommet';
+import { Box, Button } from 'grommet';
+import { Link } from 'react-router-dom';
 
 class LobbyWaiting extends Component {
   state = {
@@ -13,7 +14,7 @@ class LobbyWaiting extends Component {
       'ralph'
     ]
   }
-  
+
   render() {
     return (
       <Box align="center">
@@ -22,8 +23,8 @@ class LobbyWaiting extends Component {
           this.state.players.map(player => {
             return <h4>{player}</h4>
           })
-        } 
-        <RoutedButton path={`/game/${this.state.gameId}`} label="Play!" primary/>
+        }
+        <Button as={Link} path={`/game/${this.state.gameId}`} label="Play!" primary />
       </Box>
 
     )
@@ -31,11 +32,11 @@ class LobbyWaiting extends Component {
 }
 
 const mapStateToProps = (state) => ({
-  
+
 })
 
 const mapDispatchToProps = {
-  
+
 }
 
 export default connect(mapStateToProps, mapDispatchToProps)(LobbyWaiting)
