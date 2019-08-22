@@ -1,10 +1,3 @@
-/*
-* TODO: 
-* -[x] add user to match when create a game
-* -[] add user to match when join a game
-*
-*/
-
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet'
