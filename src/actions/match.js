@@ -2,6 +2,7 @@ import { db } from "../firebase"
 
 export const CREATED_MATCH = 'CREATED_MATCH'
 export const JOINED_MATCH = 'JOINED_MATCH'
+export const GET_MATCH = 'GET_MATCH'
 
 export function createMatch(creatorName, creatorId, matchName, password) {
   return dispatch => {
@@ -10,10 +11,7 @@ export function createMatch(creatorName, creatorId, matchName, password) {
       creatorName,
       matchName,
       password,
-      matchId: newMatch.key,
-      players: {
-        creatorId
-      }
+      matchId: newMatch.key
     })
       .then(() => {
         db.ref('matches').once('value', snapshot => {
@@ -28,7 +26,7 @@ export function createMatch(creatorName, creatorId, matchName, password) {
 
 export function joinMatch(matchId, playerId) {
   return dispatch => {
-    const newPlayer = db.ref('/matches/' + matchId + '/players').child('player').push()
+    const newPlayer = db.ref('/matches/' + matchId ).child('players').push()
       newPlayer.set({
         playerId
       })
@@ -38,5 +36,16 @@ export function joinMatch(matchId, playerId) {
             payload: matchId
           })
         })
+  }
+}
+
+export function getMatch(matchId) {
+  return dispatch => {
+    db.ref('/matches/' + matchId ).on('value', snapshot => {
+      dispatch({
+        type: GET_MATCH,
+        payload: snapshot.val()
+      })
+    })
   }
 }
