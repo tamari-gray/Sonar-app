@@ -1,6 +1,6 @@
 /*
 * TODO: 
-* -[] add user to match when create a game
+* -[x] add user to match when create a game
 * -[] add user to match when join a game
 *
 */
