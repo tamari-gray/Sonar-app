@@ -7,9 +7,10 @@
 
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
-import { Box, Form, FormField, Button } from 'grommet';
-import { createMatch, getMatches } from '../../actions/matches';
-import { Link, Redirect } from 'react-router-dom';
+import { Box, Form, FormField, Button } from 'grommet'
+import { getMatches } from '../../actions/matches'
+import { createMatch, joinMatch } from '../../actions/match'
+import { Link, Redirect } from 'react-router-dom'
 
 class Lobby extends Component {
   state = {
@@ -31,7 +32,7 @@ class Lobby extends Component {
   }
 
   render() {
-    const { match: { id }, matches } = this.props
+    const { match: { id }, matches, dispatch, user: { UID } } = this.props
     if (id) {
       return <Redirect to={`lobby/${id}`} />
     } else {
@@ -82,7 +83,7 @@ class Lobby extends Component {
                       // game.private && 'private'
                     }
                   </h3>
-                  <Button as={Link} to={`/lobby/${game.matchId}`} primary label="Join" />
+                  <Button as={Link} onClick={() => dispatch(joinMatch(game.matchId, UID))} primary label="Join" />
                 </Box>
               })
             }
