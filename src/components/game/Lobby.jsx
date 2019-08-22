@@ -1,39 +1,18 @@
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
-import { Box, Form, FormField, Button } from 'grommet';
-import { createMatch } from '../../actions/matches';
-import { Link, Redirect } from 'react-router-dom';
+import { Box, Form, FormField, Button } from 'grommet'
+import { getMatches } from '../../actions/matches'
+import { createMatch, joinMatch } from '../../actions/match'
+import { Link, Redirect } from 'react-router-dom'
 
 class Lobby extends Component {
   state = {
     name: '',
-    password: '',
-    games: [
-      {
-        creator: 'tam',
-        id: 438742380,
-        players: 5,
-        private: true
-      },
-      {
-        creator: 'Bee',
-        id: 483920,
-        players: 2,
-        private: false
-      },
-      {
-        creator: 'Pete',
-        id: 65904,
-        players: 3,
-        private: false
-      },
-      {
-        creator: 'jerry',
-        id: 584058490,
-        players: 6,
-        private: true
-      }
-    ]
+    password: ''
+  }
+
+  componentDidMount() {
+    this.props.dispatch(getMatches())
   }
 
   handleInput = e => this.setState({ [e.target.name]: e.target.value })
@@ -46,7 +25,7 @@ class Lobby extends Component {
   }
 
   render() {
-    const { id } = this.props.match
+    const { match: { id }, matches, dispatch, user: { UID } } = this.props
     if (id) {
       return <Redirect to={`lobby/${id}`} />
     } else {
@@ -79,8 +58,9 @@ class Lobby extends Component {
           <Box width="medium" align="center" >
             <h1>Join a game</h1>
             {
-              this.state.games.map(game => {
+              matches && matches.map(game => {
                 return <Box
+                  key={game.matchId}
                   pad="small"
                   border={{ color: 'primary', size: 'large' }}
                   elevation="small"
@@ -90,13 +70,13 @@ class Lobby extends Component {
                   direction="row-responsive"
                   style={{ marginTop: '1.5em' }}
                 >
-                  <h3>{"created by " + game.creator} <br />
-                    {'  players = ' + game.players} <br />
+                  <h3>{"created by " + game.creatorName} <br />
+                    {'  players = 5'} <br />
                     {
-                      game.private && 'private'
+                      // game.private && 'private'
                     }
                   </h3>
-                  <Button as={Link} to={`/lobby/${game.id}`} primary label="Join" />
+                  <Button as={Link} onClick={() => dispatch(joinMatch(game.matchId, UID))} primary label="Join" />
                 </Box>
               })
             }
@@ -107,9 +87,10 @@ class Lobby extends Component {
   }
 }
 
-const mapStateToProps = ({ user, match }) => ({
+const mapStateToProps = ({ user, match, matches }) => ({
   user,
-  match
+  match,
+  matches
 })
 
 export default connect(mapStateToProps)(Lobby)
