@@ -1,3 +1,5 @@
+// TODO: check if player is in a match => playerId === UID, then redirect if true
+
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet'
@@ -26,8 +28,18 @@ class Lobby extends Component {
 
   render() {
     const { match: { id }, matches, dispatch, user: { UID, firstName } } = this.props
+
+    if (matches && UID) {
+      matches.forEach(match => {
+        Object.keys(match.players).forEach(player => {
+          if (player.id === UID ) {
+            return <Redirect to={`lobby/${id}`} />
+          }
+        })
+      });
+    }
     if (id) {
-      return <Redirect to={`lobby/${id}`} />
+      // return <Redirect to={`lobby/${id}`} />
     } else {
       return (
         <Box
