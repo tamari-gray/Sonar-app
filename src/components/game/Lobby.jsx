@@ -25,7 +25,7 @@ class Lobby extends Component {
   }
 
   render() {
-    const { match: { id }, matches, dispatch, user: { UID } } = this.props
+    const { match: { id }, matches, dispatch, user: { UID, firstName } } = this.props
     if (id) {
       return <Redirect to={`lobby/${id}`} />
     } else {
@@ -70,13 +70,12 @@ class Lobby extends Component {
                   direction="row-responsive"
                   style={{ marginTop: '1.5em' }}
                 >
-                  <h3>{"created by " + game.creatorName} <br />
-                    {'  players = 5'} <br />
-                    {
-                      // game.private && 'private'
-                    }
+                  <h3>
+                    {game.name} <br />
+                    {"created by " + game.creatorName} <br />
+                    {'  players = ' + Object.keys(game.players).length} <br />
                   </h3>
-                  <Button as={Link} onClick={() => dispatch(joinMatch(game.matchId, UID))} primary label="Join" />
+                  <Button as={Link} onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" />
                 </Box>
               })
             }
