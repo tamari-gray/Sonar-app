@@ -11,6 +11,12 @@ class LobbyWaiting extends Component {
     play: false
   }
 
+  componentDidMount(){
+    if (this.props.match.id) {
+      this.props.dispatch(getMatch(this.props.match.id))
+    }
+  }
+
   checkCreator = () => {
     if (this.props.user) {
       if (this.props.user.UID === this.props.match.creatorId) {
@@ -27,9 +33,7 @@ class LobbyWaiting extends Component {
 
   render() {
     const { match, match: { id } } = this.props
-    if (id) {
-      this.props.dispatch(getMatch(id))
-    }
+    
     if (this.state.play) {
       return <Redirect to={`/playing/${id}`} />
     } else {
