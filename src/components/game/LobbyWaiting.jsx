@@ -1,19 +1,25 @@
-// TODO: post to firebase 
+// TODO: check if inGame is true then redirect
 
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Button } from 'grommet';
 import { Redirect } from 'react-router-dom';
-import { getMatch } from '../../actions/match';
+import { getMatch, playGame } from '../../actions/match';
 
 class LobbyWaiting extends Component {
   state = {
     play: false
   }
 
-  componentDidMount(){
+  componentDidMount() {
+    console.log('mounted')
     if (this.props.match.id) {
       this.props.dispatch(getMatch(this.props.match.id))
+    }
+    if (this.props.match.inGame) {
+      this.setState({
+        play: true
+      })
     }
   }
 
@@ -26,16 +32,17 @@ class LobbyWaiting extends Component {
   }
 
   handleRedirect = () => {
+    this.props.dispatch(playGame(this.props.match.matchId))
     this.setState({
       play: true
     })
   }
 
   render() {
-    const { match, match: { id } } = this.props
-    
-    if (this.state.play) {
-      return <Redirect to={`/playing/${id}`} />
+    const { match, match: { matchId, inGame } } = this.props
+
+    if (this.state.play || inGame) {
+      return <Redirect to={`/playing/${matchId}`} />
     } else {
       return (
         <Box align="center">
@@ -49,7 +56,6 @@ class LobbyWaiting extends Component {
             this.checkCreator() && <Button onClick={this.handleRedirect} label="Play!" primary />
           }
         </Box>
-
       )
     }
   }
