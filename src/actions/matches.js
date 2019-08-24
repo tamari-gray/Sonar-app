@@ -6,7 +6,9 @@ export const GOT_NO_MATCHES = 'GOT_NO_MATCHES'
 
 export function getMatches(id) {
   return dispatch => db.ref('matches').on('value', (snapshot) => {
-      const matches = Object.values(snapshot.val()) || null
+    const matches = Object.values(snapshot.val()) || null
+    if (matches) {
+
       matches.forEach((match) => {
         const players = Object.values(match.players)
         const alreadyJoined = players.find(player => player.playerId === id)
@@ -22,5 +24,6 @@ export function getMatches(id) {
           })
         }
       })
+    }
   })
 }
