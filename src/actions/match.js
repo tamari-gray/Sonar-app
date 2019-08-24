@@ -9,6 +9,7 @@ export function createMatch(creatorName, creatorId, matchName, password) {
     const newMatch = db.ref('matches').push()
     newMatch.set({
       creatorName,
+      creatorId,
       matchName,
       password,
       matchId: newMatch.key
@@ -16,13 +17,14 @@ export function createMatch(creatorName, creatorId, matchName, password) {
       .then(() => {
         const newPlayer = db.ref('/matches/' + newMatch.key).child('players').push()
         newPlayer.set({
-          creatorId
+          playerId: creatorId,
+          name: creatorName
         })
       })
       .then(() => {
         db.ref('matches').once('value', snapshot => {
           dispatch({
-            type: JOINED_MATCH,
+            type: CREATED_MATCH,
             payload: newMatch.key
           })
         })
@@ -30,11 +32,12 @@ export function createMatch(creatorName, creatorId, matchName, password) {
   }
 }
 
-export function joinMatch(matchId, playerId) {
+export function joinMatch(matchId, playerId, playerName) {
   return dispatch => {
     const newPlayer = db.ref('/matches/' + matchId).child('players').push()
     newPlayer.set({
-      playerId
+      playerId,
+      name: playerName
     })
       .then(() => {
         dispatch({

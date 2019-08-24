@@ -3,16 +3,19 @@ import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet'
 import { getMatches } from '../../actions/matches'
 import { createMatch, joinMatch } from '../../actions/match'
-import { Link, Redirect } from 'react-router-dom'
+import { Redirect } from 'react-router-dom'
 
 class Lobby extends Component {
   state = {
     name: '',
-    password: ''
+    password: '',
+    redirect: false
   }
 
-  componentDidMount() {
-    this.props.dispatch(getMatches())
+  componentDidMount(){
+    if (this.props.user.UID) {
+      this.props.dispatch(getMatches(this.props.user.UID))      
+    }
   }
 
   handleInput = e => this.setState({ [e.target.name]: e.target.value })
@@ -25,8 +28,9 @@ class Lobby extends Component {
   }
 
   render() {
-    const { match: { id }, matches, dispatch, user: { UID } } = this.props
-    if (id) {
+    const { match: { id }, matches, dispatch, user: { UID, firstName } } = this.props
+
+    if (id || this.state.redirect) {
       return <Redirect to={`lobby/${id}`} />
     } else {
       return (
@@ -70,13 +74,12 @@ class Lobby extends Component {
                   direction="row-responsive"
                   style={{ marginTop: '1.5em' }}
                 >
-                  <h3>{"created by " + game.creatorName} <br />
-                    {'  players = 5'} <br />
-                    {
-                      // game.private && 'private'
-                    }
+                  <h3>
+                    {game.name} <br />
+                    {"created by " + game.creatorName} <br />
+                    {'  players = ' + Object.keys(game.players).length} <br />
                   </h3>
-                  <Button as={Link} onClick={() => dispatch(joinMatch(game.matchId, UID))} primary label="Join" />
+                  <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" />
                 </Box>
               })
             }
