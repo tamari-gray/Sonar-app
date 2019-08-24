@@ -15,8 +15,6 @@ class LobbyWaiting extends Component {
     if (this.props.user) {
       if (this.props.user.UID === this.props.match.creatorId) {
         return true
-      } else {
-        return false
       }
     }
   }

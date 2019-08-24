@@ -1,20 +1,21 @@
-// TODO: check if player is in a match => playerId === UID, then redirect if true
-
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet'
 import { getMatches } from '../../actions/matches'
 import { createMatch, joinMatch } from '../../actions/match'
-import { Link, Redirect } from 'react-router-dom'
+import { Redirect } from 'react-router-dom'
 
 class Lobby extends Component {
   state = {
     name: '',
-    password: ''
+    password: '',
+    redirect: false
   }
 
-  componentDidMount() {
-    this.props.dispatch(getMatches())
+  componentDidMount(){
+    if (this.props.user.UID) {
+      this.props.dispatch(getMatches(this.props.user.UID))      
+    }
   }
 
   handleInput = e => this.setState({ [e.target.name]: e.target.value })
@@ -29,17 +30,8 @@ class Lobby extends Component {
   render() {
     const { match: { id }, matches, dispatch, user: { UID, firstName } } = this.props
 
-    if (matches && UID) {
-      matches.forEach(match => {
-        Object.keys(match.players).forEach(player => {
-          if (player.id === UID ) {
-            return <Redirect to={`lobby/${id}`} />
-          }
-        })
-      });
-    }
-    if (id) {
-      // return <Redirect to={`lobby/${id}`} />
+    if (id || this.state.redirect) {
+      return <Redirect to={`lobby/${id}`} />
     } else {
       return (
         <Box
@@ -87,7 +79,7 @@ class Lobby extends Component {
                     {"created by " + game.creatorName} <br />
                     {'  players = ' + Object.keys(game.players).length} <br />
                   </h3>
-                  <Button as={Link} onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" />
+                  <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" />
                 </Box>
               })
             }
