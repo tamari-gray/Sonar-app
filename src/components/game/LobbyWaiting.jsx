@@ -1,5 +1,3 @@
-// TODO: check if inGame is true then redirect
-
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Button } from 'grommet';
