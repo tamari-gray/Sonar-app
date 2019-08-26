@@ -12,7 +12,6 @@ class LobbyWaiting extends Component {
   }
 
   componentDidMount() {
-    console.log('mounted')
     if (this.props.match.id) {
       this.props.dispatch(getMatch(this.props.match.id))
     }
@@ -46,10 +45,22 @@ class LobbyWaiting extends Component {
     } else {
       return (
         <Box align="center">
-          players:
+         <h1>Players</h1>
         {
             match.players && Object.values(match.players).map(player => {
-              return <h4 key={player.playerId}> {player.name} </h4>
+              return <Box
+                border={{ color: 'primary', size: 'large' }}
+                key={player.playerId}
+                pad="x-small"
+                elevation="small"
+                round="large"
+                style={{ margin: '1em' }}
+                width="small"
+                align="center"
+
+              >
+                <h4> {player.name} </h4>
+              </Box>
             })
           }
           {
