@@ -3,6 +3,7 @@ import { db } from "../firebase"
 export const CREATED_MATCH = 'CREATED_MATCH'
 export const JOINED_MATCH = 'JOINED_MATCH'
 export const GET_MATCH = 'GET_MATCH'
+export const PLAY_GAME = 'PLAY_GAME'
 
 export function createMatch(creatorName, creatorId, matchName, password) {
   return dispatch => {
@@ -12,7 +13,8 @@ export function createMatch(creatorName, creatorId, matchName, password) {
       creatorId,
       matchName,
       password,
-      matchId: newMatch.key
+      matchId: newMatch.key,
+      inGame: false
     })
       .then(() => {
         const newPlayer = db.ref('/matches/' + newMatch.key).child('players').push()
@@ -56,5 +58,19 @@ export function getMatch(matchId) {
         payload: snapshot.val()
       })
     })
+    db.ref('/matches/' + matchId).on('child_changed', snapshot => {
+      dispatch({
+        type: GET_MATCH,
+        payload: snapshot.val()
+      })
+    })  
+  }
+}
+
+export function playGame(id) {
+  return dispatch => {
+    db.ref('/matches/' + id )
+    .update({ inGame: true })
+    .catch(err => console.log(err.message))
   }
 }

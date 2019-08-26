@@ -1,4 +1,4 @@
-import { CREATED_MATCH, JOINED_MATCH, GET_MATCH } from '../actions/match'
+import { CREATED_MATCH, JOINED_MATCH, GET_MATCH, PLAY_GAME } from '../actions/match'
 
 const initialState = false
 
@@ -9,11 +9,13 @@ export default (state = initialState, { type, payload }) => {
       return { id: payload }
 
     case JOINED_MATCH:
-      return { id: payload }
+      return { ...state, id: payload }
 
     case GET_MATCH:
-      return payload
+      return { ...state, ...payload }
 
+    case PLAY_GAME:
+      return { ...state, inGame: true }
     default:
       return state
   }
