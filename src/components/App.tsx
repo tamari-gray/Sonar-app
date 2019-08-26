@@ -7,7 +7,7 @@ import SignUp from './Auth/SignUp'
 import Login from './Auth/Login'
 import Profile from './Profile'
 import Lobby from './game/Lobby'
-import LobbyWaiting from './game/LobbyWaiting';
+import InGame from './game/InGame'
 
 const App: React.FC = () => {
   return (
@@ -18,7 +18,7 @@ const App: React.FC = () => {
           <Route path="/login" exact component={Login} />
           <Route path="/profile" exact component={Profile} />
           <Route path="/lobby" exact component={Lobby} />
-          <Route path="/lobby/:gameId" exact component={LobbyWaiting} />
+          <Route path="/game/:gameId" exact component={InGame} />
         </Switch>
       </Router>
     </Grommet>
