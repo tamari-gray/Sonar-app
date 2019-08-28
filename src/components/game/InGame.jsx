@@ -5,7 +5,7 @@
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Button } from 'grommet'
-import { playGame, getMatch, } from '../../actions/match'
+import { playGame, getMatch, setLocation } from '../../actions/match'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { db } from '../../firebase'
@@ -17,16 +17,21 @@ class InGame extends Component {
     play: false,
     lat: -39.646356,
     lng: 176.862737,
-    zoom: 18,
+    zoom: 18
   }
 
   componentDidMount() {
-    if (this.props.match.matchId) {
-      this.props.dispatch(getMatch(this.props.matchId))
+    if (this.props.match.matchId && this.props.user.UID) {
+      this.props.dispatch(getMatch(this.props.match.matchId))
+      this.initMap(this.props.match, this.props.user.UID, this.props.dispatch)
     }
+  }
+
+  initMap = (match, userId, dispatch) => {
     map = L.map('map', {
       zoom: 22,
       maxZoomLevel: 22,
+      maxNativeZoom: 22,
       zoomControl: true
     }).fitWorld()
 
@@ -36,22 +41,18 @@ class InGame extends Component {
     }).addTo(map)
 
     function onLocationFound(e) {
-      var radius = e.accuracy / 3
-      console.log(e)
+      let radius = 30
 
-      L.circle(e.latlng, radius).addTo(map);
+      L.circle(e.latlng, radius).addTo(map)
       L.marker(e.latlng).addTo(map)
         .bindPopup("You are within " + radius + " meters from this point").openPopup()
 
       // add geojson to db
-      // if (this.props) {
-      //   db.ref(`matches/${this.props.match.matchId}/players/${this.props.user.id}`)
-      // }
-
+      dispatch(setLocation(match.matchId, userId, e.latlng))
     }
 
     function onLocationError(e) {
-      alert(e.message);
+      alert(e.message)
     }
 
     map.on('locationfound', onLocationFound);
@@ -62,7 +63,9 @@ class InGame extends Component {
   checkCreator = () => {
     if (this.props.user) {
       if (this.props.user.UID === this.props.match.creatorId) {
-        return true
+        if (this.props.inGame) {
+          return true
+        }
       }
     }
   }
