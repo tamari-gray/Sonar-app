@@ -5,8 +5,11 @@ import { connect } from 'react-redux'
 import { Box, Button } from 'grommet'
 import { Redirect } from 'react-router-dom'
 import { getMatch, playGame } from '../../actions/match'
-import { Map, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+// import { Map, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+
+let map = null
 
 class InGame extends Component {
   state = {
@@ -17,11 +20,34 @@ class InGame extends Component {
   }
 
   componentDidMount() {
-    if (this.props.match.inGame) {
-      this.setState({
-        play: true
-      })
+    map = L.map('map', {
+      zoom: 22,
+      maxZoomLevel: 22,
+      zoomControl: true
+    }).fitWorld()
+
+    L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      detectRetina: true,
+      attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map)
+
+    function onLocationFound(e) {
+      var radius = e.accuracy / 3
+      console.log(e)
+
+      L.circle(e.latlng, radius).addTo(map);
+      L.marker(e.latlng).addTo(map)
+        .bindPopup("You are within " + radius + " meters from this point").openPopup(); 
+
     }
+
+    function onLocationError(e) {
+      alert(e.message);
+    }
+
+    map.on('locationfound', onLocationFound);
+    map.on('locationerror', onLocationError);
+    map.locate({ setView: true, watch: true, maxZoom: 19 });
   }
 
   checkCreator = () => {
@@ -44,37 +70,9 @@ class InGame extends Component {
     const position = [this.state.lat, this.state.lng]
 
     return (
-      <Box align="center">
-        <Map 
-          style={{ height: "480px", width: "100%" }} 
-          center={position} 
-          zoom={this.state.zoom}>
-          <TileLayer
-            maxNativeZoom={25}
-            maxZoom={25}
-            attribution='&amp;copy <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-            url="http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <CircleMarker 
-            center={position}
-            radius={10}
-          >
-            <Popup>
-              player info
-            </Popup>
-          </CircleMarker>
-          {
-            // match.players && match.players.map(player => {
-            //   return <CircleMarker
-            //     center={player.pos}
-            //     radius={0.02}
-            //   >
-
-            //   </CircleMarker>
-            // })
-          }
-        </Map>
-
+      <Box align="center" >
+        <Box id="map" style={{ height: "480px", width: "100%" }} >
+        </Box>
         {
           this.checkCreator() && <Button onClick={this.playGame} label="Play!" primary />
         }
