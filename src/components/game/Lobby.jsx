@@ -28,10 +28,10 @@ class Lobby extends Component {
   }
 
   render() {
-    const { match: { id }, matches, dispatch, user: { UID, firstName } } = this.props
+    const { match: { matchId }, matches, dispatch, user: { UID, firstName } } = this.props
 
-    if (id || this.state.redirect) {
-      return <Redirect to={`game/${id}`} />
+    if (matchId || this.state.redirect) {
+      return <Redirect to={`game/${matchId}`} />
     } else {
       return (
         <Box

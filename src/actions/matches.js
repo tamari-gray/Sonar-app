@@ -1,5 +1,5 @@
 import { db } from "../firebase"
-import { JOINED_MATCH } from "./match"
+import { GET_MATCH } from "./match"
 
 export const GET_MATCHES = 'GET_MATCHES'
 export const GOT_NO_MATCHES = 'GOT_NO_MATCHES'
@@ -16,8 +16,8 @@ export function getMatches(id) {
         const alreadyJoined = players.find(player => player.playerId === id)
         if (alreadyJoined) {
           dispatch({
-            type: JOINED_MATCH,
-            payload: match.matchId
+            type: GET_MATCH,
+            payload: match
           })
         } else {
           dispatch({

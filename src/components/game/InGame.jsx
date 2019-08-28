@@ -1,13 +1,14 @@
-//TODO: register with here => use their maps with leaflet
+// TODO: 
+// add user pos to db
+// display users pos from db
 
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Button } from 'grommet'
-import { Redirect } from 'react-router-dom'
-import { getMatch, playGame } from '../../actions/match'
-// import { Map, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import { playGame, getMatch, } from '../../actions/match'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { db } from '../../firebase'
 
 let map = null
 
@@ -20,6 +21,9 @@ class InGame extends Component {
   }
 
   componentDidMount() {
+    if (this.props.match.matchId) {
+      this.props.dispatch(getMatch(this.props.matchId))
+    }
     map = L.map('map', {
       zoom: 22,
       maxZoomLevel: 22,
@@ -37,7 +41,12 @@ class InGame extends Component {
 
       L.circle(e.latlng, radius).addTo(map);
       L.marker(e.latlng).addTo(map)
-        .bindPopup("You are within " + radius + " meters from this point").openPopup(); 
+        .bindPopup("You are within " + radius + " meters from this point").openPopup()
+
+      // add geojson to db
+      // if (this.props) {
+      //   db.ref(`matches/${this.props.match.matchId}/players/${this.props.user.id}`)
+      // }
 
     }
 
