@@ -76,12 +76,25 @@ export function playGame(id) {
   }
 }
 
-export function setLocation(matchId, userId, { lat, lng }) {
+// geofire init
+let geo
+
+export function setLocation(matchId, { firstName, userId}, { lat, lng }) {
   return dispatch => {
     const ref = db.ref(`matches/${matchId}/playerLocations`)
-    const geo = new GeoFire(ref)
+    geo = new GeoFire(ref)
     geo.set({
-      [userId]: [lat, lng]
+      [userId]: [lat, lng],
     })
   }
 }
+
+export function getLocations(radius, {lat , lng}){
+  return dispatch => {
+    let geoQuery = geo.query({
+      center: [lat, lng],
+      radius
+    })
+  }
+}
+
