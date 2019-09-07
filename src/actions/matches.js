@@ -13,8 +13,13 @@ export function getMatches(id) {
     if (matches) {
       matches.forEach((match) => {
         const players = Object.values(match.players)
+        let playerLocations = []
+        if (match.playerLocations) {
+          playerLocations = Object.values(match.playerLocations)
+        }
         const alreadyJoined = players.find(player => player.playerId === id)
         match.players = players
+        match.playerLocations = playerLocations
         if (alreadyJoined) {
           dispatch({
             type: GET_MATCH,

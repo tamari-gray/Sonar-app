@@ -1,11 +1,11 @@
 // TODO: 
-// add user pos to db
-// display users pos from db
+// add user pos to db [x]
+// display users pos from db 
 
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Button } from 'grommet'
-import { playGame, getMatch, setLocation } from '../../actions/match'
+import { playGame, getMatch, setLocation, getLocations } from '../../actions/match'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { db } from '../../firebase'
@@ -23,11 +23,11 @@ class InGame extends Component {
   componentDidMount() {
     if (this.props.match.matchId && this.props.user.UID) {
       this.props.dispatch(getMatch(this.props.match.matchId))
-      this.initMap(this.props.match, this.props.user.UID, this.props.dispatch)
+      this.initMap(this.props.match, this.props.user, this.props.dispatch)
     }
   }
 
-  initMap = (match, userId, dispatch) => {
+  initMap = (match, user, dispatch) => {
     map = L.map('map', {
       zoom: 22,
       maxZoomLevel: 22,
@@ -41,14 +41,28 @@ class InGame extends Component {
     }).addTo(map)
 
     function onLocationFound(e) {
-      let radius = 30
+      const radius = 10
 
-      L.circle(e.latlng, radius).addTo(map)
-      L.marker(e.latlng).addTo(map)
-        .bindPopup("You are within " + radius + " meters from this point").openPopup()
+      // init player
+      // L.circle(e.latlng, radius).addTo(map)
+      // L.marker(e.latlng).addTo(map)
+      //   .bindPopup(user.firstName + ", you are within " + radius + " meters from this point").openPopup()
 
       // add geojson to db
-      dispatch(setLocation(match.matchId, userId, e.latlng))
+      dispatch(setLocation(match.matchId, user, e.latlng))
+
+      // add players to map
+      match.playerLocations.forEach((player, i) => {
+        if (player !== undefined) {
+          setTimeout(() => {
+            console.log(player.l, i)
+            L.circle(player.l, radius).addTo(map)
+            L.marker(e.latlng).addTo(map)
+              .bindPopup(player.g + ", you are within " + radius + " meters from this point").openPopup()
+            // map.setView(player.l, 19)
+          }, 3000)
+        }
+      })
     }
 
     function onLocationError(e) {
@@ -57,7 +71,8 @@ class InGame extends Component {
 
     map.on('locationfound', onLocationFound);
     map.on('locationerror', onLocationError);
-    map.locate({ setView: true, watch: true, maxZoom: 19 });
+    map.locate({ setView: true, watch: true, maxZoom: 19 })
+    map.locate({ setView: true, maxZoom: 19 });
   }
 
   checkCreator = () => {
@@ -77,6 +92,10 @@ class InGame extends Component {
     })
   }
 
+  handleSonar = () => {
+    this.props.dispatch(getLocations())
+  }
+
   render() {
     const { match, user } = this.props
     const position = [this.state.lat, this.state.lng]
@@ -88,9 +107,10 @@ class InGame extends Component {
         {
           this.checkCreator() && <Button onClick={this.playGame} label="Play!" primary />
         }
+        <Button primary style={{padding: '0.8em'}} onClick={this.handleSonar}> send sonar </Button>
       </Box>
     )
-  }
+  } 
 }
 
 const mapStateToProps = ({ match, user }) => ({
