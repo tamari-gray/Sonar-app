@@ -41,7 +41,9 @@ class Lobby extends Component {
 
   createMatch = (userId, username) => {
     db.collection('matches').add({
-      admin: { id: userId, name: username }
+      admin: { id: userId, name: username },
+      name: this.state.name,
+      password: this.state.password
     })
       .then((docRef) => {
         db.collection('matches').doc(docRef.id).collection('players')
@@ -115,6 +117,7 @@ class Lobby extends Component {
                   style={{ marginTop: '1.5em' }}
                 >
                   <h3 style={{ margin: "auto" }}>
+                    {game.name} <br />
                     {"created by " + game.admin.name} <br />
                     {game.players.length + " players joined"}
                   </h3>
