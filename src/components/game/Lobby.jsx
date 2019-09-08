@@ -4,31 +4,42 @@ import { Box, Form, FormField, Button } from 'grommet'
 import { getMatches } from '../../actions/matches'
 import { createMatch, joinMatch } from '../../actions/match'
 import { Redirect } from 'react-router-dom'
+import { db } from '../../firebase';
 
 class Lobby extends Component {
   state = {
     name: '',
     password: '',
-    redirect: false
+    redirect: false,
+    matches: []
   }
 
   componentDidMount(){
-    if (this.props.user.UID) {
-      this.props.dispatch(getMatches(this.props.user.UID))      
-    }
+    // if (this.props.user.UID) {lobby
+    //   this.props.dispatch(getMatches(this.props.user.UID))      
+    // }
+
+    db.collection('matches').onSnapshot(snapshot => {
+      const matches = []
+      snapshot.forEach(doc => {
+        matches.push(doc.data())
+      })
+      this.setState({matches})
+    })
   }
 
   handleInput = e => this.setState({ [e.target.name]: e.target.value })
 
   handleSubmit = e => {
     e.preventDefault()
-    const { dispatch, user: { firstName, UID } } = this.props
-    const { name, password } = this.state
-    dispatch(createMatch(firstName, UID, name, password))
+    // const { dispatch, user: { firstName, UID } } = this.props
+    // const { name, password } = this.state
+    // dispatch(createMatch(firstName, UID, name, password))
   }
 
   render() {
-    const { match: { matchId }, matches, dispatch, user: { UID, firstName } } = this.props
+    const { match: { matchId }, dispatch, user: { UID, username } } = this.props
+    const { matches } = this.state
 
     if (matchId || this.state.redirect) {
       return <Redirect to={`game/${matchId}`} />
@@ -75,11 +86,11 @@ class Lobby extends Component {
                   style={{ marginTop: '1.5em' }}
                 >
                   <h3>
-                    {game.name} <br />
-                    {"created by " + game.creatorName} <br />
-                    {'  players = ' + Object.keys(game.players).length} <br />
+                    {game.admin} <br /> 
+                    {/* {"created by " + game.creatorName} <br />
+                    {'  players = ' + Object.keys(game.players).length} <br /> */}
                   </h3>
-                  <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" />
+                  {/* <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" /> */}
                 </Box>
               })
             }
