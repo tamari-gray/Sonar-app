@@ -1,15 +1,6 @@
-/*TODO:
-
-- [] create match
-- [] join match
-- [] check if player has joined match => redirect
-
-*/
-
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet'
-import { joinMatch } from '../../actions/match'
 import { Redirect } from 'react-router-dom'
 import { db } from '../../firebase';
 
@@ -42,22 +33,30 @@ class Lobby extends Component {
             players.push(snap.data())
           })
         })
-        matches.push({ admin: doc.data().admin, players })
+        matches.push({ matchId: doc.ref.id, admin: doc.data().admin, players })
       })
       this.setState({ matches })
     })
   }
 
-  createMatch = (playerId, playerName) => {
+  createMatch = (userId, username) => {
     db.collection('matches').add({
-      admin: { id: playerId, name: playerName }
+      admin: { id: userId, name: username }
     })
       .then((docRef) => {
         db.collection('matches').doc(docRef.id).collection('players')
-          .add({ id: playerId, name: playerName })
-          .catch(e => console.log(`Error adding ${playerName} to match. ${e}`))
+          .add({ id: userId, name: username })
+          .then(() => this.setState({ joined: true }))
+          .catch(e => console.log(`Error adding ${username} to match. ${e}`))
       })
-      .catch((e) => console.error(`Error setting ${playerName} as admin of match. ${e}`))
+      .catch((e) => console.error(`Error setting ${username} as admin of match. ${e}`))
+  }
+
+  joinMatch = (matchId, userId, username) => {
+    db.collection('matches').doc(matchId).collection('players')
+      .add({ id: userId, name: username })
+      .then(() => this.setState({ joined: true }))
+      .catch(e => console.log(`Error joining match. ${e}`))
   }
 
   handleInput = e => this.setState({ [e.target.name]: e.target.value })
@@ -68,7 +67,7 @@ class Lobby extends Component {
   }
 
   render() {
-    const { match: { matchId }, dispatch, user: { UID, username } } = this.props
+    const { match: { matchId }, user: { UID, username } } = this.props
     const { matches } = this.state
 
     if (matchId || this.state.joined) {
@@ -119,7 +118,7 @@ class Lobby extends Component {
                     {"created by " + game.admin.name} <br />
                     {game.players.length + " players joined"}
                   </h3>
-                  {/* <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" /> */}
+                  <Button onClick={() => this.joinMatch(game.matchId, UID, username)} primary label="Join" />
                 </Box>
               })
             }
@@ -130,10 +129,8 @@ class Lobby extends Component {
   }
 }
 
-const mapStateToProps = ({ user, match, matches }) => ({
-  user,
-  match,
-  matches
+const mapStateToProps = ({ user }) => ({
+  user
 })
 
 export default connect(mapStateToProps)(Lobby)
