@@ -10,7 +10,7 @@ class Lobby extends Component {
     password: '',
     redirect: false,
     matches: [],
-    joined: false
+    matchId: false
   }
 
   componentDidMount() {
@@ -28,7 +28,7 @@ class Lobby extends Component {
           querySnap.forEach((snap) => {
             // check if user has already joined a match
             if (snap.data().id === userId) {
-              this.setState({ joined: true })
+              this.setState({ matchId: doc.ref.id })
             }
             players.push(snap.data())
           })
@@ -48,7 +48,7 @@ class Lobby extends Component {
       .then((docRef) => {
         db.collection('matches').doc(docRef.id).collection('players')
           .add({ id: userId, name: username })
-          .then(() => this.setState({ joined: true }))
+          .then(() => this.setState({ matchId: docRef.id }))
           .catch(e => console.log(`Error adding ${username} to match. ${e}`))
       })
       .catch((e) => console.error(`Error setting ${username} as admin of match. ${e}`))
@@ -69,10 +69,10 @@ class Lobby extends Component {
   }
 
   render() {
-    const { match: { matchId }, user: { UID, username } } = this.props
-    const { matches } = this.state
+    const { user: { UID, username } } = this.props
+    const { matches, matchId } = this.state
 
-    if (matchId || this.state.joined) {
+    if (matchId) {
       return <Redirect to={`game/${matchId}`} />
     } else {
       return (
