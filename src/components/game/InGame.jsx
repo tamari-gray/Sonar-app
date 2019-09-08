@@ -11,7 +11,7 @@ import { connect } from 'react-redux'
 import { Box, Button } from 'grommet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { db } from '../../firebase'
+import { db, geo } from '../../firebase'
 
 let map = null
 
@@ -36,12 +36,16 @@ class InGame extends Component {
           if (doc.data().initialising) {
             this.setState({ initialising: true })
           }
-          // this.initMap(this.props.match, this.props.user, this.props.dispatch)
+          this.initMap(this.props.user)
         })
     }
   }
 
-  initMap = (match, user, dispatch) => {
+  initMap = (user) => {
+    const players = geo.collection('matches').doc(this.props.matchId).collection('players')
+    const point = geo.point(this.state.lat, this.state.lng)
+    players.add({name: 'test', position: point.data })
+
     map = L.map('map', {
       zoom: 22,
       maxZoomLevel: 22,
@@ -62,21 +66,7 @@ class InGame extends Component {
       // L.marker(e.latlng).addTo(map)
       //   .bindPopup(user.firstName + ", you are within " + radius + " meters from this point").openPopup()
 
-      // add geojson to db
-      // dispatch(setLocation(match.matchId, user, e.latlng))
-
-      // add players to map
-      match.playerLocations.forEach((player, i) => {
-        if (player !== undefined) {
-          setTimeout(() => {
-            console.log(player.l, i)
-            L.circle(player.l, radius).addTo(map)
-            L.marker(e.latlng).addTo(map)
-              .bindPopup(player.g + ", you are within " + radius + " meters from this point").openPopup()
-            // map.setView(player.l, 19)
-          }, 3000)
-        }
-      })
+      
     }
 
     function onLocationError(e) {
