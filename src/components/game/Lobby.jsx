@@ -1,3 +1,11 @@
+/*TODO:
+
+- [] check if player has joined match => redirect
+- [] create match
+- [] join match
+
+*/
+
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet'
@@ -22,7 +30,13 @@ class Lobby extends Component {
     db.collection('matches').onSnapshot(snapshot => {
       const matches = []
       snapshot.forEach(doc => {
-        matches.push(doc.data())
+        const players = []
+        doc.ref.collection('players').get().then((querySnap) => {
+          querySnap.forEach((snap) => {
+            players.push(snap.data())
+          })
+        })
+        matches.push({admin: doc.data().admin, players})
       })
       this.setState({ matches })
     })
@@ -85,8 +99,9 @@ class Lobby extends Component {
                   direction="row-responsive"
                   style={{ marginTop: '1.5em' }}
                 >
-                  <h3 style={{ margin: "auto"}}>
+                  <h3 style={{ margin: "auto" }}>
                     {"created by " + game.admin} <br />
+                    { game.players.length + " players joined"}
                   </h3>
                   {/* <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" /> */}
                 </Box>
