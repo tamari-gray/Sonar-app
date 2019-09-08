@@ -1,11 +1,14 @@
-// TODO: 
-// add user pos to db [x]
-// display users pos from db 
+/*
+TODO:
+- [x] get match
+- [x] check if admin & toggle btn
+- [x] admin clicks play => set inGame: true
+- [] do geoquery => add players on map as they join
+*/
 
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Button } from 'grommet'
-import { playGame, getMatch, setLocation, getLocations } from '../../actions/match'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { db } from '../../firebase'
@@ -14,16 +17,27 @@ let map = null
 
 class InGame extends Component {
   state = {
-    play: false,
     lat: -39.646356,
     lng: 176.862737,
-    zoom: 18
+    zoom: 18,
+    admin: false,
+    initialising: false
   }
 
   componentDidMount() {
-    if (this.props.match.matchId && this.props.user.UID) {
-      this.props.dispatch(getMatch(this.props.match.matchId))
-      this.initMap(this.props.match, this.props.user, this.props.dispatch)
+    if (this.props.matchId) {
+      db.collection('matches').doc(this.props.matchId)
+        .onSnapshot((doc) => {
+          // check if user is admin
+          if (doc.data().admin.id === this.props.user.UID) {
+            this.setState({ admin: doc.data().admin })
+          }
+          // check if game is in play
+          if (doc.data().initialising) {
+            this.setState({ initialising: true })
+          }
+          // this.initMap(this.props.match, this.props.user, this.props.dispatch)
+        })
     }
   }
 
@@ -49,7 +63,7 @@ class InGame extends Component {
       //   .bindPopup(user.firstName + ", you are within " + radius + " meters from this point").openPopup()
 
       // add geojson to db
-      dispatch(setLocation(match.matchId, user, e.latlng))
+      // dispatch(setLocation(match.matchId, user, e.latlng))
 
       // add players to map
       match.playerLocations.forEach((player, i) => {
@@ -75,46 +89,36 @@ class InGame extends Component {
     map.locate({ setView: true, maxZoom: 19 });
   }
 
-  checkCreator = () => {
-    if (this.props.user) {
-      if (this.props.user.UID === this.props.match.creatorId) {
-        if (this.props.inGame) {
-          return true
-        }
-      }
-    }
-  }
-
   playGame = () => {
-    this.props.dispatch(playGame(this.props.match.matchId))
-    this.setState({
-      play: true
-    })
+    db.collection('matches').doc(this.props.matchId)
+      .update({ initialising: true })
+      .catch(e => console.log(`Error initialising game. ${e}`))
   }
 
   handleSonar = () => {
-    this.props.dispatch(getLocations())
+    // this.props.dispatch(getLocations())
   }
 
   render() {
-    const { match, user } = this.props
     const position = [this.state.lat, this.state.lng]
-
+    const { admin, initialising } = this.state
+    console.log(this.state)
     return (
       <Box align="center" >
         <Box id="map" style={{ height: "480px", width: "100%" }} >
         </Box>
         {
-          this.checkCreator() && <Button onClick={this.playGame} label="Play!" primary />
+          admin && initialising === false && <Button onClick={this.playGame} label="Play!" primary />
         }
-        <Button primary style={{padding: '0.8em'}} onClick={this.handleSonar}> send sonar </Button>
+        {
+          initialising && <Button primary style={{ padding: '0.8em' }} onClick={this.handleSonar}> send sonar </Button>
+        }
       </Box>
     )
-  } 
+  }
 }
 
-const mapStateToProps = ({ match, user }) => ({
-  match,
+const mapStateToProps = ({ user }) => ({
   user
 })
 
