@@ -12,11 +12,11 @@ class Profile extends Component {
   }
 
   render() {
-    const { firstName, lastName } = this.props.user
+    const { username } = this.props.user
     return (
       <Box align="center">
         <Box>
-          <h3> {firstName + ' ' + lastName} </h3>
+          <h3> {username} </h3>
         </Box>
         <Button as={Link} to="/lobby" primary label="play" /> 
       </Box>

@@ -1,6 +1,7 @@
 import * as firebase from 'firebase/app'
 import 'firebase/auth'
-import 'firebase/database'
+import 'firebase/firestore'
+import * as geofirex from 'geofirex'
 
 const firebaseConfig = {
   apiKey: "AIzaSyCUu8zzfotKZNvfQcXRQm2LMX7xwMRCyRg",
@@ -13,5 +14,6 @@ const firebaseConfig = {
 }
 firebase.initializeApp(firebaseConfig)
 
-export const db = firebase.database()
 export const auth = firebase.auth()
+export const db = firebase.firestore()
+export const geo = geofirex.init(firebase)
