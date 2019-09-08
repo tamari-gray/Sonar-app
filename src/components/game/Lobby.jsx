@@ -14,7 +14,7 @@ class Lobby extends Component {
     matches: []
   }
 
-  componentDidMount(){
+  componentDidMount() {
     // if (this.props.user.UID) {lobby
     //   this.props.dispatch(getMatches(this.props.user.UID))      
     // }
@@ -24,7 +24,7 @@ class Lobby extends Component {
       snapshot.forEach(doc => {
         matches.push(doc.data())
       })
-      this.setState({matches})
+      this.setState({ matches })
     })
   }
 
@@ -85,10 +85,8 @@ class Lobby extends Component {
                   direction="row-responsive"
                   style={{ marginTop: '1.5em' }}
                 >
-                  <h3>
-                    {game.admin} <br /> 
-                    {/* {"created by " + game.creatorName} <br />
-                    {'  players = ' + Object.keys(game.players).length} <br /> */}
+                  <h3 style={{ margin: "auto"}}>
+                    {"created by " + game.admin} <br />
                   </h3>
                   {/* <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" /> */}
                 </Box>
