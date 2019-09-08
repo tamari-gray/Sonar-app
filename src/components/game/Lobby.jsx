@@ -19,7 +19,8 @@ class Lobby extends Component {
     name: '',
     password: '',
     redirect: false,
-    matches: []
+    matches: [],
+    joined: false
   }
 
   componentDidMount() {
@@ -33,11 +34,17 @@ class Lobby extends Component {
         const players = []
         doc.ref.collection('players').get().then((querySnap) => {
           querySnap.forEach((snap) => {
+
+            // check if user has already joined a match
+            if (snap.data().id === this.props.user.UID) {
+              this.setState({ joined: true })
+            }
             players.push(snap.data())
           })
         })
-        matches.push({admin: doc.data().admin, players})
+        matches.push({ admin: doc.data().admin, players })
       })
+
       this.setState({ matches })
     })
   }
@@ -55,7 +62,7 @@ class Lobby extends Component {
     const { match: { matchId }, dispatch, user: { UID, username } } = this.props
     const { matches } = this.state
 
-    if (matchId || this.state.redirect) {
+    if (matchId || this.state.joined) {
       return <Redirect to={`game/${matchId}`} />
     } else {
       return (
@@ -101,9 +108,9 @@ class Lobby extends Component {
                 >
                   <h3 style={{ margin: "auto" }}>
                     {"created by " + game.admin} <br />
-                    { game.players.length + " players joined"}
+                    {game.players.length + " players joined"}
                   </h3>
-                  {/* <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" /> */}
+                  <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" />
                 </Box>
               })
             }
