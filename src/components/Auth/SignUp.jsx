@@ -7,8 +7,7 @@ import { createAccount } from '../../actions/user';
 class SignUp extends Component {
 
   state = {
-    firstName: '',
-    lastName: '',
+    username: '',
     email: '',
     password: ''
   }
@@ -25,7 +24,7 @@ class SignUp extends Component {
   }
 
   render() {
-    const { email, password, firstName, lastName } = this.state
+    const { email, password, username } = this.state
     if (this.props.authed !== null) {
       return <Redirect to='/profile' />
     } else {
@@ -47,28 +46,20 @@ class SignUp extends Component {
               style={{ margin: '1.5em 1.5em 0 1.5em ' }}
               onSubmit={this.handleSubmit}
             >
-              <FormField required={true}>
-                <TextInput
-                  placeholder="first name"
-                  name="firstName"
-                  value={firstName}
-                  onChange={this.handleChange}
-                />
-              </FormField>
-              <FormField >
-                <TextInput
-                  placeholder="last name"
-                  name="lastName"
-                  onChange={this.handleChange}
-                  value={lastName}
-                />
-              </FormField>
               <FormField >
                 <TextInput
                   placeholder="email"
                   name="email"
                   onChange={this.handleChange}
                   value={email}
+                />
+              </FormField>
+              <FormField required={true}>
+                <TextInput
+                  placeholder="user name"
+                  name="username"
+                  value={username}
+                  onChange={this.handleChange}
                 />
               </FormField>
               <FormField >

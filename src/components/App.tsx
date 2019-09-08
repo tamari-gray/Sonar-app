@@ -18,7 +18,9 @@ const App: React.FC = () => {
           <Route path="/login" exact component={Login} />
           <Route path="/profile" exact component={Profile} />
           <Route path="/lobby" exact component={Lobby} />
-          <Route path="/game/:gameId" exact component={InGame} />
+          <Route path="/game/:matchId" exact render={routeProps =>
+            <InGame matchId={routeProps.match.params.matchId}/>
+          } />
         </Switch>
       </Router>
     </Grommet>
