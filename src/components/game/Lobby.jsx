@@ -1,16 +1,15 @@
 /*TODO:
 
-- [] check if player has joined match => redirect
 - [] create match
 - [] join match
+- [] check if player has joined match => redirect
 
 */
 
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet'
-import { getMatches } from '../../actions/matches'
-import { createMatch, joinMatch } from '../../actions/match'
+import { joinMatch } from '../../actions/match'
 import { Redirect } from 'react-router-dom'
 import { db } from '../../firebase';
 
@@ -24,19 +23,20 @@ class Lobby extends Component {
   }
 
   componentDidMount() {
-    // if (this.props.user.UID) {lobby
-    //   this.props.dispatch(getMatches(this.props.user.UID))      
-    // }
+    if (this.props.user.UID) {
+      this.getMatches(this.props.user.UID)
+    }
+  }
 
+  getMatches = (userId) => {
     db.collection('matches').onSnapshot(snapshot => {
       const matches = []
       snapshot.forEach(doc => {
         const players = []
         doc.ref.collection('players').get().then((querySnap) => {
           querySnap.forEach((snap) => {
-
             // check if user has already joined a match
-            if (snap.data().id === this.props.user.UID) {
+            if (snap.data().id === userId) {
               this.setState({ joined: true })
             }
             players.push(snap.data())
@@ -44,18 +44,27 @@ class Lobby extends Component {
         })
         matches.push({ admin: doc.data().admin, players })
       })
-
       this.setState({ matches })
     })
+  }
+
+  createMatch = (playerId, playerName) => {
+    db.collection('matches').add({
+      admin: { id: playerId, name: playerName }
+    })
+      .then((docRef) => {
+        db.collection('matches').doc(docRef.id).collection('players')
+          .add({ id: playerId, name: playerName })
+          .catch(e => console.log(`Error adding ${playerName} to match. ${e}`))
+      })
+      .catch((e) => console.error(`Error setting ${playerName} as admin of match. ${e}`))
   }
 
   handleInput = e => this.setState({ [e.target.name]: e.target.value })
 
   handleSubmit = e => {
     e.preventDefault()
-    // const { dispatch, user: { firstName, UID } } = this.props
-    // const { name, password } = this.state
-    // dispatch(createMatch(firstName, UID, name, password))
+    this.createMatch(this.props.user.UID, this.props.user.username)
   }
 
   render() {
@@ -107,10 +116,10 @@ class Lobby extends Component {
                   style={{ marginTop: '1.5em' }}
                 >
                   <h3 style={{ margin: "auto" }}>
-                    {"created by " + game.admin} <br />
+                    {"created by " + game.admin.name} <br />
                     {game.players.length + " players joined"}
                   </h3>
-                  <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" />
+                  {/* <Button onClick={() => dispatch(joinMatch(game.matchId, UID, firstName))} primary label="Join" /> */}
                 </Box>
               })
             }
