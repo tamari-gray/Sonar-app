@@ -17,35 +17,100 @@ let map = null
 
 class InGame extends Component {
   state = {
-    lat: -39.646356,
-    lng: 176.862737,
+    boundary: {
+      lat: -39.637652, // mayfair primary location
+      lng: 176.860973,
+    },
+    position: null,
     zoom: 18,
     admin: false,
     initialising: false
   }
 
   componentDidMount() {
-    if (this.props.matchId) {
-      db.collection('matches').doc(this.props.matchId)
-        .onSnapshot((doc) => {
-          // check if user is admin
-          if (doc.data().admin.id === this.props.user.UID) {
-            this.setState({ admin: doc.data().admin })
-          }
-          // check if game is in play
-          if (doc.data().initialising) {
-            this.setState({ initialising: true })
-          }
-          this.initMap(this.props.user)
-        })
+    if (this.props) {
+      this.getPlayers()
+      if(map === null) this.initMap() // put players on map and inside boundary
+      this.getMatch() // toggle play btn
     }
   }
 
-  initMap = (user) => {
-    const players = geo.collection('matches').doc(this.props.matchId).collection('players')
-    const point = geo.point(this.state.lat, this.state.lng)
-    players.add({name: 'test', position: point.data })
+  getUserLocation = async () => {
 
+    const success = async (pos) => {
+      await this.setState({
+        position: {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        }
+      })
+      console.log('got position in getUserLocation', this.state.position)
+    }
+
+    const error = () => {
+      alert('cant get user location')
+    }
+
+    console.log('getting position')
+    const watchId = await navigator.geolocation.watchPosition((pos) => {
+      return pos
+      this.setState({ position: pos })
+      console.log('got position', this.state.position)
+    }, error)
+    console.log(watchId)
+    // const setLocation = await 
+    // use this id to stop watching users position => navigator.geolocation.clearWatch(watchID);
+    // this.setState({
+    //   watchId
+    // })
+    return watchId
+  }
+
+  dbInit = (lat, lng) => {
+    const { user: { username, UID }, matchId } = this.props
+    const game = geo.collection(matchId)
+    const point = geo.point(lat, lng)
+    game.add({ name: username, id: UID, position: point.data })
+    console.log('added user to game')
+  }
+
+  // realtime observable of players
+  // getPlayers = () => { 
+  //   // make geoquery inside boundary
+  //   const game = geo.collection(this.props.matchId)
+  //   const center = geo.point(this.state.lat, this.state.lng);
+  //   const radius = 0.25;
+  //   const field = 'position';
+
+  //   const query = game.within(center, radius, field)
+  //   query.subscribe(console.log)
+  // }
+
+  getPlayers = () => {
+    db.collection(this.props.matchId).onSnapshot((snap) => {
+      snap.forEach(doc => {
+        this.setState({ players: doc.data() })
+        console.log('got players', this.state.players)
+      })
+    })
+  }
+
+  getMatch = () => {
+    db.collection('matches').doc(this.props.matchId)
+      .onSnapshot((doc) => {
+        // check if user is admin
+        if (doc.data().admin.id === this.props.user.UID) {
+          this.setState({ admin: doc.data().admin })
+        }
+        // check if game is in play
+        if (doc.data().initialising) {
+          this.setState({ initialising: true })
+        }
+        this.initMap(this.props.user)
+      })
+  }
+
+  initMap = (user) => {
     map = L.map('map', {
       zoom: 22,
       maxZoomLevel: 22,
@@ -58,15 +123,19 @@ class InGame extends Component {
       attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map)
 
-    function onLocationFound(e) {
+    const onLocationFound = (e) => {
       const radius = 10
 
-      // init player
+      // add user to game
+      this.dbInit(e.latlng.latitude, e.latlng.longitude)
+      
+
+      // add players to map
+
       // L.circle(e.latlng, radius).addTo(map)
       // L.marker(e.latlng).addTo(map)
       //   .bindPopup(user.firstName + ", you are within " + radius + " meters from this point").openPopup()
 
-      
     }
 
     function onLocationError(e) {
@@ -92,7 +161,6 @@ class InGame extends Component {
   render() {
     const position = [this.state.lat, this.state.lng]
     const { admin, initialising } = this.state
-    console.log(this.state)
     return (
       <Box align="center" >
         <Box id="map" style={{ height: "480px", width: "100%" }} >
