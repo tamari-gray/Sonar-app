@@ -1,9 +1,6 @@
 /*
 TODO:
-- [x] get match
-- [x] check if admin & toggle btn
-- [x] admin clicks play => set inGame: true
-- [] do geoquery => add players on map as they join
+- [] get players location data into map and add icons
 */
 
 import React, { Component } from 'react'
