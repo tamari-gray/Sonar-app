@@ -29,49 +29,40 @@ class InGame extends Component {
 
   componentDidMount() {
     if (this.props) {
-      this.getPlayers()
-      if(map === null) this.initMap() // put players on map and inside boundary
-      this.getMatch() // toggle play btn
+      this.initMap()
+      // add player to db
+      geo.collection(this.props.matchId).setDoc(this.props.user.UID, {
+        name: this.props.user.username,
+      }).then(() => {
+        this.getUserLocation()
+      })
+      // if (map === null) this.initMap() // put players on map and inside boundary
+      // this.getMatch() // toggle play btn
     }
   }
 
-  getUserLocation = async () => {
+  getUserLocation = () => {
 
-    const success = async (pos) => {
-      await this.setState({
-        position: {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude
-        }
+    const success = (pos) => {
+      // add player location to db
+      const point = geo.point(pos.coords.latitude, pos.coords.longitude)
+      db.collection(this.props.matchId).doc(this.props.user.UID).update({
+        position: point.data
+      }).then(() => {
+        this.getPlayers() // gets players from db
       })
-      console.log('got position in getUserLocation', this.state.position)
     }
 
     const error = () => {
       alert('cant get user location')
     }
 
-    console.log('getting position')
-    const watchId = await navigator.geolocation.watchPosition((pos) => {
-      return pos
-      this.setState({ position: pos })
-      console.log('got position', this.state.position)
-    }, error)
-    console.log(watchId)
-    // const setLocation = await 
-    // use this id to stop watching users position => navigator.geolocation.clearWatch(watchID);
-    // this.setState({
-    //   watchId
-    // })
-    return watchId
-  }
+    const watchId = navigator.geolocation.watchPosition(success, error)
 
-  dbInit = (lat, lng) => {
-    const { user: { username, UID }, matchId } = this.props
-    const game = geo.collection(matchId)
-    const point = geo.point(lat, lng)
-    game.add({ name: username, id: UID, position: point.data })
-    console.log('added user to game')
+    // use this id to stop watching users position => navigator.geolocation.clearWatch(watchID);
+    this.setState({
+      watchId
+    })
   }
 
   // realtime observable of players
@@ -88,10 +79,12 @@ class InGame extends Component {
 
   getPlayers = () => {
     db.collection(this.props.matchId).onSnapshot((snap) => {
+      let players = []
       snap.forEach(doc => {
-        this.setState({ players: doc.data() })
-        console.log('got players', this.state.players)
+        players.push(doc.data())
       })
+      this.setState({ players })
+      console.log('got players', this.state.players)
     })
   }
 
@@ -110,7 +103,7 @@ class InGame extends Component {
       })
   }
 
-  initMap = (user) => {
+  initMap = () => {
     map = L.map('map', {
       zoom: 22,
       maxZoomLevel: 22,
@@ -123,29 +116,7 @@ class InGame extends Component {
       attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map)
 
-    const onLocationFound = (e) => {
-      const radius = 10
-
-      // add user to game
-      this.dbInit(e.latlng.latitude, e.latlng.longitude)
-      
-
-      // add players to map
-
-      // L.circle(e.latlng, radius).addTo(map)
-      // L.marker(e.latlng).addTo(map)
-      //   .bindPopup(user.firstName + ", you are within " + radius + " meters from this point").openPopup()
-
-    }
-
-    function onLocationError(e) {
-      alert(e.message)
-    }
-
-    map.on('locationfound', onLocationFound);
-    map.on('locationerror', onLocationError);
-    map.locate({ setView: true, watch: true, maxZoom: 19 })
-    map.locate({ setView: true, maxZoom: 19 });
+    map.locate({ setView: true, maxZoom: 19 })
   }
 
   playGame = () => {
@@ -159,7 +130,6 @@ class InGame extends Component {
   }
 
   render() {
-    const position = [this.state.lat, this.state.lng]
     const { admin, initialising } = this.state
     return (
       <Box align="center" >
