@@ -19,6 +19,10 @@ class Lobby extends Component {
     }
   }
 
+  componentWillUnmount () {
+    // cancel get matches 
+  }
+
   getMatches = (userId) => {
     db.collection('matches').onSnapshot(snapshot => {
       const matches = []
