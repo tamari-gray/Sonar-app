@@ -146,7 +146,7 @@ class InGame extends Component {
         </Box>
         <Box width="medium" align="center" >
           {
-            players && <h3>{players.length} players in game</h3>
+            players && !initialising && <h3>{players.length} players in game</h3>
           }
         </Box>
         {
