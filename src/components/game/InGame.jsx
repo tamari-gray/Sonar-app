@@ -1,7 +1,7 @@
 /*
 TODO:
-- [] watch all players live location
-- [] check if admin
+- [x] watch all players live location
+- [x] check if admin
 - [] admin starts game
 */
 
@@ -14,7 +14,6 @@ import { db, geo } from '../../firebase'
 
 let map = null
 let playersRefUnsubscribe = null
-let playerMarker = null
 
 class InGame extends Component {
   state = {
@@ -33,90 +32,51 @@ class InGame extends Component {
   componentDidMount() {
     if (this.props) {
       this.initMap()
-      // add player to db
-      geo.collection(this.props.matchId).setDoc(this.props.user.UID, {
+      geo.collection(this.props.matchId).setDoc(this.props.user.UID, { // add player to db 
         name: this.props.user.username,
-      }).then(() => {
-        this.getUserLocation()
       })
-      // this.getMatch() // toggle play btn
+        .then(() => {
+          this.getMatch() // toggle play btn
+        })
+        .catch((e) => alert(`Error adding player to db`, e))
     }
   }
-
-  // getUserLocation = () => { // rewrote in mapInit. TODO: delete if rewritten function is successfull
-
-  //   const success = (pos) => {
-  //     // add player location to db
-  //     const point = geo.point(pos.coords.latitude, pos.coords.longitude)
-  //     db.collection(this.props.matchId).doc(this.props.user.UID).update({
-  //       position: point.data
-  //     }).then(() => {
-  //       this.getPlayers() // gets players from db
-
-  //     })
-  //   }
-
-  //   const error = () => {
-  //     alert('cant get user location')
-  //   }
-
-  //   const watchId = navigator.geolocation.watchPosition(success, error)
-
-  //   // use this id to stop watching users position => navigator.geolocation.clearWatch(watchID);
-  //   this.setState({
-  //     watchId
-  //   })
-  // }
-
-  // realtime observable of players
-  // getPlayers = () => { 
-  //   // make geoquery inside boundary
-  //   const game = geo.collection(this.props.matchId)
-  //   const center = geo.point(this.state.lat, this.state.lng);
-  //   const radius = 0.25;
-  //   const field = 'position';
-
-  //   const query = game.within(center, radius, field)
-  //   query.subscribe(console.log)
-  // }
 
   getPlayers = () => {
     playersRefUnsubscribe = db.collection(this.props.matchId).onSnapshot((querySnapshot) => {
       let players = []
       querySnapshot.forEach(doc => { // watch every players position
         players.push(doc.data())
-        const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.latitude]
+        const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
         let playerMarker = L.circle(pos, {
           color: 'red',
           fillColor: '#f03',
           fillOpacity: 0.5,
-          radius: 100
+          radius: 10
         }).addTo(map)
+          .bindPopup(doc.data().name).openPopup()
 
         if (doc.ref.id === this.props.user.UID) { // check if player is this user
           playerMarker = L.circle(pos, { // set player marker to black 
             color: 'black',
             fillColor: '#f03',
             fillOpacity: 0.5,
-            radius: 100
+            radius: 10
           }).addTo(map)
 
-          map.setView(pos, 10) // watch this user's position on map
+          map.setView(pos, 19) // watch this user's position on map
         }
       })
       this.setState({ players })
-      console.log('got players', this.state.players)
     })
   }
 
   getMatch = () => {
     db.collection('matches').doc(this.props.matchId)
       .onSnapshot((doc) => {
-        
         if (doc.data().admin.id === this.props.user.UID) { // check if user is admin
           this.setState({ admin: doc.data().admin })
         }
-        
         if (doc.data().initialising) { // check if game is initialising
           this.setState({ initialising: true })
         }
@@ -148,20 +108,21 @@ class InGame extends Component {
       radius: 200
     }).addTo(map)
 
-    map.on('locationFound', ((e) => {
-      const point = geo.point(e.latlng.latitude, e.latlng.longitude) // TODO: fix
+    let gotUserLocation = false
+
+    map.on('locationfound', ((e) => {
+      const point = geo.point(e.latlng.lat, e.latlng.lng) 
       db.collection(this.props.matchId).doc(this.props.user.UID).update({ // update users location in DB
         position: point.data
       }).then(() => {
-        this.setState({ // tell component that weve got users location
-          userLocationFound: true
-        })
-      }).then(() => {
-        if (this.state.userLocation) { // only run this.getPlayers once. it has a realtime listener on it
+        if (gotUserLocation === false) { // only run this.getPlayers once. it has a realtime listener on it
           this.getPlayers() // gets players from db
+          gotUserLocation = true
         }
       })
     }))
+
+    map.locate({ setView: true, maxZoom: 19, watch: true });
 
   }
 
@@ -169,7 +130,7 @@ class InGame extends Component {
     // playersRefUnsubscribe() // remove players ref listener
 
     db.collection('matches').doc(this.props.matchId)
-      .update({ playing: true })
+      .update({ initialising: true })
       .catch(e => console.log(`Error initialising game. ${e}`))
   }
 
@@ -187,28 +148,12 @@ class InGame extends Component {
           {
             players && <h3>{players.length} players in game</h3>
           }
-          {
-            players && players.map(player => {
-              return <Box
-                key={player.name}
-                pad="small"
-                border={{ color: 'primary', size: 'large' }}
-                elevation="small"
-                round="large"
-                width="small"
-                align="center"
-                direction="row-responsive"
-                style={{ marginTop: '1.5em' }}
-              >
-                <h3 style={{ margin: "auto" }}>
-                  {player.name}
-                </h3>
-              </Box>
-            })
-          }
         </Box>
         {
           admin && !initialising && <Button onClick={this.playGame} label="Play!" primary />
+        }
+        {
+          initialising && 'show timer here 30 seconds'
         }
         {
           playing && <Button primary style={{ padding: '0.8em' }} onClick={this.handleSonar}> send sonar </Button>
