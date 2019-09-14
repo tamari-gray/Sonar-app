@@ -63,6 +63,7 @@ class InGame extends Component {
             fillOpacity: 0.5,
             radius: 10
           }).addTo(map)
+            .bindPopup(doc.data().name).openPopup()
 
           map.setView(pos, 19) // watch this user's position on map
         }
@@ -111,7 +112,7 @@ class InGame extends Component {
     let gotUserLocation = false
 
     map.on('locationfound', ((e) => {
-      const point = geo.point(e.latlng.lat, e.latlng.lng) 
+      const point = geo.point(e.latlng.lat, e.latlng.lng)
       db.collection(this.props.matchId).doc(this.props.user.UID).update({ // update users location in DB
         position: point.data
       }).then(() => {
@@ -121,6 +122,11 @@ class InGame extends Component {
         }
       })
     }))
+
+    // map.findAccuratePosition({
+    //   maxWait: 15000, // defaults to 10000
+    //   desiredAccuracy: 30 // defaults to 20
+    // });
 
     map.locate({ setView: true, maxZoom: 19, watch: true });
 
