@@ -8,17 +8,18 @@ import Login from './Auth/Login'
 import Profile from './Profile'
 import Lobby from './game/Lobby'
 import InGame from './game/InGame'
+import routes from '../routes'
 
 const App: React.FC = () => {
   return (
     <Grommet theme={grommet}>
       <Router>
         <Switch>
-          <Route path="/signUp" exact component={SignUp} />
-          <Route path="/login" exact component={Login} />
-          <Route path="/profile" exact component={Profile} />
-          <Route path="/lobby" exact component={Lobby} />
-          <Route path="/game/:matchId" exact render={routeProps =>
+          <Route path={routes.SIGN_UP} exact component={SignUp} />
+          <Route path={routes.LOGIN} exact component={Login} />
+          <Route path={routes.PROFILE} exact component={Profile} />
+          <Route path={routes.LOBBY} exact component={Lobby} />
+          <Route path={routes.GAME} exact render={routeProps =>
             <InGame matchId={routeProps.match.params.matchId}/>
           } />
         </Switch>
