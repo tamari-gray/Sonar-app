@@ -47,25 +47,29 @@ class InGame extends Component {
       let players = []
       querySnapshot.forEach(doc => { // watch every players position
         players.push(doc.data())
-        const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
-        let playerMarker = L.circle(pos, {
-          color: 'red',
-          fillColor: '#f03',
-          fillOpacity: 0.5,
-          radius: 10
-        }).addTo(map)
-          .bindPopup(doc.data().name).openPopup()
-
-        if (doc.ref.id === this.props.user.UID) { // check if player is this user
-          playerMarker = L.circle(pos, { // set player marker to black 
-            color: 'black',
+        let playerMarker
+        
+        if (doc.data().position) {
+          const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
+          playerMarker = L.circle(pos, {
+            color: 'red',
             fillColor: '#f03',
             fillOpacity: 0.5,
             radius: 10
           }).addTo(map)
             .bindPopup(doc.data().name).openPopup()
 
-          map.setView(pos, 19) // watch this user's position on map
+          if (doc.ref.id === this.props.user.UID) { // check if player is this user
+            playerMarker = L.circle(pos, { // set player marker to black 
+              color: 'black',
+              fillColor: '#f03',
+              fillOpacity: 0.5,
+              radius: 10
+            }).addTo(map)
+              .bindPopup(doc.data().name).openPopup()
+
+            map.setView(pos, 19) // watch this user's position on map
+          }
         }
       })
       this.setState({ players })
