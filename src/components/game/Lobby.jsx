@@ -123,7 +123,7 @@ class Lobby extends Component {
                   <h3 style={{ margin: "auto" }}>
                     {game.name} <br />
                     {"created by " + game.admin.name} <br />
-                    {game.players.length + " players joined"}
+                    {/* {game.players.length + " players joined"} */}
                   </h3>
                   <Button onClick={() => this.joinMatch(game.matchId, UID, username)} primary label="Join" />
                 </Box>
