@@ -61,7 +61,7 @@ class Lobby extends Component {
   joinMatch = (matchId, userId, username) => {
     db.collection('matches').doc(matchId).collection('players')
       .add({ id: userId, name: username })
-      .then(() => this.setState({ joined: true }))
+      .then(() => this.setState({ matchId }))
       .catch(e => console.log(`Error joining match. ${e}`))
   }
 
@@ -123,7 +123,7 @@ class Lobby extends Component {
                   <h3 style={{ margin: "auto" }}>
                     {game.name} <br />
                     {"created by " + game.admin.name} <br />
-                    {game.players.length + " players joined"}
+                    {/* {game.players.length + " players joined"} */}
                   </h3>
                   <Button onClick={() => this.joinMatch(game.matchId, UID, username)} primary label="Join" />
                 </Box>
