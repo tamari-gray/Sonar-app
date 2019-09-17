@@ -1,32 +1,22 @@
 import React from 'react'
 import { render } from 'react-dom'
-import { createStore, applyMiddleware, compose } from 'redux'
-import thunk from 'redux-thunk'
-import rootReducer from './reducers/index'
 import { Provider } from 'react-redux'
+import { store, persistor } from './redux-persist'
+import { PersistGate } from "redux-persist/lib/integration/react"
 
 import './index.css';
 import App from './components/App';
-import * as serviceWorker from './serviceWorker';
-
-declare global {
-  interface Window {
-    __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: typeof compose;
-  }
-}
-
-const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose
-const store = createStore(rootReducer, composeEnhancers(
-  applyMiddleware(thunk)
-))
+import * as serviceWorker from './serviceWorker'
 
 document.addEventListener('DOMContentLoaded', () => {
   render(
     <Provider store={store}>
-      <App />
+      <PersistGate loading={null} persistor={persistor}>
+        <App />
+      </PersistGate>
     </Provider>,
     document.getElementById('root')
   )
 })
 
-serviceWorker.unregister();
+serviceWorker.unregister()
