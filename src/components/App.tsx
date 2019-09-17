@@ -14,8 +14,9 @@ const App: React.FC = () => {
   return (
     <Grommet theme={grommet}>
       <Router>
-        <Switch>
-          <Route path={routes.SIGN_UP} exact component={SignUp} />
+        <Switch> 
+          {<Route path={routes.SIGN_UP} exact component={SignUp} />  /* TODO: make redirect from '/' => '/signUp' with auth*/}
+          <Route path={'/'} exact component={SignUp} />
           <Route path={routes.LOGIN} exact component={Login} />
           <Route path={routes.PROFILE} exact component={Profile} />
           <Route path={routes.LOBBY} exact component={Lobby} />
