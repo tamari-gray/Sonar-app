@@ -19,28 +19,31 @@ class Lobby extends Component {
     }
   }
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     // cancel get matches 
   }
 
   getMatches = (userId) => {
-    db.collection('matches').onSnapshot(snapshot => {
-      const matches = []
-      snapshot.forEach(doc => {
-        const players = []
-        doc.ref.collection('players').get().then((querySnap) => {
-          querySnap.forEach((snap) => {
-            // check if user has already joined a match
-            if (snap.data().id === userId) {
-              this.setState({ matchId: doc.ref.id })
-            }
-            players.push(snap.data())
+    db.collection('matches')
+      .onSnapshot(snapshot => {
+        const matches = []
+        snapshot.forEach(doc => {
+          const players = []
+          doc.ref.collection('players').get().then((querySnap) => {
+            querySnap.forEach((snap) => {
+              // check if user has already joined a match
+              if (snap.data().id === userId) {
+                this.setState({ matchId: doc.ref.id })
+              }
+              players.push(snap.data())
+            })
           })
+          if (!doc.data().playing) {
+            matches.push({ matchId: doc.ref.id, admin: doc.data().admin, players })
+          }
         })
-        matches.push({ matchId: doc.ref.id, admin: doc.data().admin, players })
+        this.setState({ matches })
       })
-      this.setState({ matches })
-    })
   }
 
   createMatch = (userId, username) => {
