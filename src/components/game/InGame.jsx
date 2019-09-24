@@ -1,6 +1,6 @@
 /*
 TODO:
-- [x] watch all players live location
+- [] watch all players live location
 - [x] check if admin
 - [] admin starts game
 */
@@ -13,7 +13,7 @@ import 'leaflet/dist/leaflet.css'
 import { db, geo } from '../../firebase'
 
 let map = null
-let playersRefUnsubscribe = null
+let thisUser = null
 
 class InGame extends Component {
   state = {
@@ -42,38 +42,45 @@ class InGame extends Component {
     }
   }
 
-  getPlayers = () => {
-    playersRefUnsubscribe = db.collection(this.props.matchId).onSnapshot((querySnapshot) => {
-      let players = []
-      querySnapshot.forEach(doc => { // watch every players position
-        players.push(doc.data())
-        let playerMarker
-        
-        if (doc.data().position) {
-          const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
-          playerMarker = L.circle(pos, {
-            color: 'red',
-            fillColor: '#f03',
-            fillOpacity: 0.5,
-            radius: 10
-          }).addTo(map)
-            .bindPopup(doc.data().name).openPopup()
-
-          if (doc.ref.id === this.props.user.UID) { // check if player is this user
-            playerMarker = L.circle(pos, { // set player marker to black 
-              color: 'black',
-              fillColor: '#f03',
-              fillOpacity: 0.5,
-              radius: 10
-            }).addTo(map)
-              .bindPopup(doc.data().name).openPopup()
-
-            map.setView(pos, 19) // watch this user's position on map
+  addPlayersToMap = () => {  // geoquery within boundary
+    const userId = this.props.user.UID
+    db.collection(this.props.matchId)
+      .onSnapshot(function (snapshot) {
+        snapshot.docChanges().forEach(function (change) {
+          let players = []
+          if (change.type === "added") { // if player has joined put them on map
+            if (change.doc.data().position) {
+              const pos = [change.doc.data().position.geopoint.latitude, change.doc.data().position.geopoint.longitude]
+              players.push(change.doc.data())
+              if (change.doc.ref.id === userId) { // check if player is this user
+                thisUser = L.circle(pos, { // set player marker to black 
+                  color: 'black',
+                  fillColor: '#f03',
+                  fillOpacity: 0.5,
+                  radius: 10
+                }).addTo(map)
+                  .bindPopup(change.doc.data().name).openPopup()
+                map.setView(pos, 19) // watch this user's position on map
+              } else {
+                L.circle(pos, {
+                  color: 'red',
+                  fillColor: '#f03',
+                  fillOpacity: 0.5,
+                  radius: 10
+                }).addTo(map)
+                  .bindPopup(change.doc.data().name)
+              }
+            }
           }
-        }
+          if (change.type === "modified") { // if players position has changed update marker
+            const pos = [change.doc.data().position.geopoint.latitude, change.doc.data().position.geopoint.longitude]
+            var newLatLng = new L.LatLng(pos[0], pos[1]);
+            if (change.doc.ref.id === userId) { // if this user then update marker
+              thisUser.setLatLng(newLatLng)
+            }
+          }
+        })
       })
-      this.setState({ players })
-    })
   }
 
   getMatch = () => {
@@ -117,23 +124,17 @@ class InGame extends Component {
 
     map.on('locationfound', ((e) => {
       const point = geo.point(e.latlng.lat, e.latlng.lng)
-      db.collection(this.props.matchId).doc(this.props.user.UID).update({ // update users location in DB
+      const matchId = this.props.matchId
+      db.collection(matchId).doc(this.props.user.UID).update({ // update users location in DB
         position: point.data
       }).then(() => {
         if (gotUserLocation === false) { // only run this.getPlayers once. it has a realtime listener on it
-          this.getPlayers() // gets players from db
+          this.addPlayersToMap() // gets players from db
           gotUserLocation = true
         }
       })
     }))
-
-    // map.findAccuratePosition({
-    //   maxWait: 15000, // defaults to 10000
-    //   desiredAccuracy: 30 // defaults to 20
-    // });
-
-    map.locate({ setView: true, maxZoom: 19, watch: true });
-
+    map.locate({ setView: true, maxZoom: 19, watch: true })
   }
 
   playGame = () => {
