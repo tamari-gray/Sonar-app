@@ -26,7 +26,8 @@ class InGame extends Component {
     admin: false,
     initialising: false,
     players: null,
-    userLocationFound: false
+    userLocationFound: false,
+    sonarTimer: 0
   }
 
   componentDidMount() {
@@ -42,45 +43,41 @@ class InGame extends Component {
     }
   }
 
-  addPlayersToMap = () => {  // geoquery within boundary
-    const userId = this.props.user.UID
-    db.collection(this.props.matchId)
-      .onSnapshot(function (snapshot) {
-        snapshot.docChanges().forEach(function (change) {
-          let players = []
-          if (change.type === "added") { // if player has joined put them on map
-            if (change.doc.data().position) {
-              const pos = [change.doc.data().position.geopoint.latitude, change.doc.data().position.geopoint.longitude]
-              players.push(change.doc.data())
-              if (change.doc.ref.id === userId) { // check if player is this user
-                thisUser = L.circle(pos, { // set player marker to black 
-                  color: 'black',
-                  fillColor: '#f03',
-                  fillOpacity: 0.5,
-                  radius: 10
-                }).addTo(map)
-                  .bindPopup(change.doc.data().name).openPopup()
-                map.setView(pos, 19) // watch this user's position on map
-              } else {
-                L.circle(pos, {
-                  color: 'red',
-                  fillColor: '#f03',
-                  fillOpacity: 0.5,
-                  radius: 10
-                }).addTo(map)
-                  .bindPopup(change.doc.data().name)
-              }
-            }
-          }
-          if (change.type === "modified") { // if players position has changed update marker
-            const pos = [change.doc.data().position.geopoint.latitude, change.doc.data().position.geopoint.longitude]
-            var newLatLng = new L.LatLng(pos[0], pos[1]);
-            if (change.doc.ref.id === userId) { // if this user then update marker
-              thisUser.setLatLng(newLatLng)
-            }
-          }
-        })
+  showAllPlayersLatestLocation = () => {
+    // get all players from db ONCE
+    let players = []
+    const userName = this.props.user.username
+    db.collection(this.props.matchId).get().then(querySnapshot => {
+      querySnapshot.forEach(doc => {
+        if (doc.data().name !== userName) {
+          console.log(doc.data())
+          const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
+          const marker = L.circle(pos, { // set player marker to black 
+            color: 'green',
+            fillColor: 'green',
+            fillOpacity: 0.5,
+            radius: 10
+          }).addTo(map)
+            .bindPopup(doc.data().name).openPopup()
+          players.push(marker)
+        }
       })
+    }).then(() => {
+      let timer = 10
+      const intervalId = setInterval(() => {
+        timer = timer - 1
+        if (timer === 0) {
+          players.forEach(player => {
+            map.removeLayer(player)
+          })
+          clearInterval(intervalId)
+
+        }
+        this.setState({
+          sonarTimer: timer
+        })
+      }, 1000)
+    })
   }
 
   getMatch = () => {
@@ -123,15 +120,25 @@ class InGame extends Component {
     let gotUserLocation = false
 
     map.on('locationfound', ((e) => {
+      console.log('updated location')
       const point = geo.point(e.latlng.lat, e.latlng.lng)
       const matchId = this.props.matchId
+      if (thisUser === null) {
+        thisUser = L.circle(e.latlng, { // set player marker to black 
+          color: 'black',
+          fillColor: '#f03',
+          fillOpacity: 0.5,
+          radius: 5
+        }).addTo(map)
+          .bindPopup(this.props.user.username).openPopup()
+        // map.setView(e.latlng, 19) // watch this user's position on map
+      } else if (thisUser) {
+        let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
+        thisUser.setLatLng(newLatLng)
+      }
+
       db.collection(matchId).doc(this.props.user.UID).update({ // update users location in DB
         position: point.data
-      }).then(() => {
-        if (gotUserLocation === false) { // only run this.getPlayers once. it has a realtime listener on it
-          this.addPlayersToMap() // gets players from db
-          gotUserLocation = true
-        }
       })
     }))
     map.locate({ setView: true, maxZoom: 19, watch: true })
@@ -150,7 +157,7 @@ class InGame extends Component {
   }
 
   render() {
-    const { admin, initialising, players, playing } = this.state
+    const { admin, initialising, players, playing, sonarTimer } = this.state
     return (
       <Box align="center" >
         <Box id="map" style={{ height: "480px", width: "100%" }} >
@@ -167,7 +174,10 @@ class InGame extends Component {
           initialising && 'show timer here 30 seconds'
         }
         {
-          playing && <Button primary style={{ padding: '0.8em' }} onClick={this.handleSonar}> send sonar </Button>
+          sonarTimer === 0 && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>
+        }
+        {
+          sonarTimer !== 0 && 'sonar active for ' + sonarTimer + ' seconds'
         }
       </Box>
     )
