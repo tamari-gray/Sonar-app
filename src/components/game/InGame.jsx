@@ -140,7 +140,7 @@ class InGame extends Component {
     // playersRefUnsubscribe() // remove players ref listener
 
     db.collection('matches').doc(this.props.matchId)
-      .update({ initialising: true })
+      .update({ playing: true })
       .catch(e => console.log(`Error initialising game. ${e}`))
   }
 
