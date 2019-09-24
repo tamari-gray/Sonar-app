@@ -1,6 +1,6 @@
 /*
 TODO:
-- [x] watch all players live location
+- [] watch all players live location
 - [x] check if admin
 - [] admin starts game
 */
@@ -13,7 +13,7 @@ import 'leaflet/dist/leaflet.css'
 import { db, geo } from '../../firebase'
 
 let map = null
-let playersRefUnsubscribe = null
+let thisUser = null
 
 class InGame extends Component {
   state = {
@@ -26,7 +26,8 @@ class InGame extends Component {
     admin: false,
     initialising: false,
     players: null,
-    userLocationFound: false
+    userLocationFound: false,
+    sonarTimer: 0
   }
 
   componentDidMount() {
@@ -42,37 +43,40 @@ class InGame extends Component {
     }
   }
 
-  getPlayers = () => {
-    playersRefUnsubscribe = db.collection(this.props.matchId).onSnapshot((querySnapshot) => {
-      let players = []
-      querySnapshot.forEach(doc => { // watch every players position
-        players.push(doc.data())
-        let playerMarker
-        
-        if (doc.data().position) {
+  showAllPlayersLatestLocation = () => {
+    // get all players from db ONCE
+    let players = []
+    const userName = this.props.user.username
+    db.collection(this.props.matchId).get().then(querySnapshot => {
+      querySnapshot.forEach(doc => {
+        if (doc.data().name !== userName) {
+          console.log(doc.data())
           const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
-          playerMarker = L.circle(pos, {
-            color: 'red',
-            fillColor: '#f03',
+          const marker = L.circle(pos, { // set player marker to black 
+            color: 'green',
+            fillColor: 'green',
             fillOpacity: 0.5,
             radius: 10
           }).addTo(map)
             .bindPopup(doc.data().name).openPopup()
-
-          if (doc.ref.id === this.props.user.UID) { // check if player is this user
-            playerMarker = L.circle(pos, { // set player marker to black 
-              color: 'black',
-              fillColor: '#f03',
-              fillOpacity: 0.5,
-              radius: 10
-            }).addTo(map)
-              .bindPopup(doc.data().name).openPopup()
-
-            map.setView(pos, 19) // watch this user's position on map
-          }
+          players.push(marker)
         }
       })
-      this.setState({ players })
+    }).then(() => {
+      let timer = 10
+      const intervalId = setInterval(() => {
+        timer = timer - 1
+        if (timer === 0) {
+          players.forEach(player => {
+            map.removeLayer(player)
+          })
+          clearInterval(intervalId)
+
+        }
+        this.setState({
+          sonarTimer: timer
+        })
+      }, 1000)
     })
   }
 
@@ -116,31 +120,35 @@ class InGame extends Component {
     let gotUserLocation = false
 
     map.on('locationfound', ((e) => {
+      console.log('updated location')
       const point = geo.point(e.latlng.lat, e.latlng.lng)
-      db.collection(this.props.matchId).doc(this.props.user.UID).update({ // update users location in DB
+      const matchId = this.props.matchId
+      if (thisUser === null) {
+        thisUser = L.circle(e.latlng, { // set player marker to black 
+          color: 'black',
+          fillColor: '#f03',
+          fillOpacity: 0.5,
+          radius: 5
+        }).addTo(map)
+          .bindPopup(this.props.user.username).openPopup()
+        // map.setView(e.latlng, 19) // watch this user's position on map
+      } else if (thisUser) {
+        let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
+        thisUser.setLatLng(newLatLng)
+      }
+
+      db.collection(matchId).doc(this.props.user.UID).update({ // update users location in DB
         position: point.data
-      }).then(() => {
-        if (gotUserLocation === false) { // only run this.getPlayers once. it has a realtime listener on it
-          this.getPlayers() // gets players from db
-          gotUserLocation = true
-        }
       })
     }))
-
-    // map.findAccuratePosition({
-    //   maxWait: 15000, // defaults to 10000
-    //   desiredAccuracy: 30 // defaults to 20
-    // });
-
-    map.locate({ setView: true, maxZoom: 19, watch: true });
-
+    map.locate({ setView: true, maxZoom: 19, watch: true })
   }
 
   playGame = () => {
     // playersRefUnsubscribe() // remove players ref listener
 
     db.collection('matches').doc(this.props.matchId)
-      .update({ initialising: true })
+      .update({ playing: true })
       .catch(e => console.log(`Error initialising game. ${e}`))
   }
 
@@ -149,7 +157,7 @@ class InGame extends Component {
   }
 
   render() {
-    const { admin, initialising, players, playing } = this.state
+    const { admin, initialising, players, playing, sonarTimer } = this.state
     return (
       <Box align="center" >
         <Box id="map" style={{ height: "480px", width: "100%" }} >
@@ -166,7 +174,10 @@ class InGame extends Component {
           initialising && 'show timer here 30 seconds'
         }
         {
-          playing && <Button primary style={{ padding: '0.8em' }} onClick={this.handleSonar}> send sonar </Button>
+          sonarTimer === 0 && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>
+        }
+        {
+          sonarTimer !== 0 && 'sonar active for ' + sonarTimer + ' seconds'
         }
       </Box>
     )
