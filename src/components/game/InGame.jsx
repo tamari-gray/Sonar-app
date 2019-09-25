@@ -11,6 +11,8 @@ import { Box, Button } from 'grommet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { db, geo } from '../../firebase'
+import routes from '../../routes'
+import { Redirect } from 'react-router-dom'
 
 let map = null
 let thisUser = null
@@ -29,7 +31,8 @@ class InGame extends Component {
     userLocationFound: false,
     sonarTimer: 0,
     playing: false,
-    initialisingTimer: 0
+    initialisingTimer: 0,
+    geolocationError: false
   }
 
   componentDidMount() {
@@ -93,7 +96,7 @@ class InGame extends Component {
         if (doc.data().playing) { // check if game is in play
           this.setState({ playing: true })
         }
-        
+
       })
   }
 
@@ -102,16 +105,16 @@ class InGame extends Component {
     const id = setInterval(() => {
       timer = timer - 1
       this.setState({
-        initialisingTimer : timer
+        initialisingTimer: timer
       })
       if (timer === 0) {
         this.setState({
-          initialisingTimer : 0
+          initialisingTimer: 0
         })
         this.playGame()
         clearInterval(id)
       }
-      
+
     }, 1000)
   }
 
@@ -137,8 +140,6 @@ class InGame extends Component {
       radius: 200
     }).addTo(map)
 
-    let gotUserLocation = false
-
     map.on('locationfound', ((e) => {
       const point = geo.point(e.latlng.lat, e.latlng.lng)
       const matchId = this.props.matchId
@@ -160,7 +161,19 @@ class InGame extends Component {
         position: point.data
       })
     }))
-    map.locate({ setView: true, maxZoom: 19, watch: true })
+
+    map.on('locationerror', ((e) => {
+      alert(`Please enable geolocation access to play game. 
+      redirecting to home screen in 5 seconds
+      ${e}`)
+      setTimeout(() => {
+        this.setState({
+          geolocationError: true
+        })
+      }, 5000)
+    }))
+
+    map.locate({ setView: true, maxZoom: 19, watch: true, enableHighAccuracy: true })
   }
 
   initaliseGame = () => {
@@ -181,28 +194,33 @@ class InGame extends Component {
   }
 
   render() {
-    const { admin, initialising, playing, sonarTimer, initialisingTimer } = this.state
-    return (
-      <Box align="center" >
-        <Box id="map" style={{ height: "480px", width: "100%" }} >
+    const { admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
+
+    if (geolocationError) {
+      return <Redirect path={routes.PROFILE} />
+    } else {
+      return (
+        <Box align="center" >
+          <Box id="map" style={{ height: "480px", width: "100%" }} >
+          </Box>
+          {
+            admin && !playing && <Button onClick={this.initaliseGame} label="Play!" primary />
+          }
+          {
+            !playing && !admin && initialisingTimer !== 0 && <p>waiting for more players...</p>
+          }
+          {
+            initialisingTimer !== 0 && playing`Game starts in ${initialisingTimer} seconds. GO HIDE!!!`
+          }
+          {
+            sonarTimer === 0 && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>
+          }
+          {
+            sonarTimer !== 0 && 'sonar active for ' + sonarTimer + ' seconds'
+          }
         </Box>
-        {
-          admin && !playing && <Button onClick={this.initaliseGame} label="Play!" primary />
-        }
-        {
-          !playing && !admin && initialisingTimer !== 0 && <p>waiting for more players...</p>
-        }
-        {
-          initialisingTimer !== 0 && playing `Game starts in ${initialisingTimer} seconds. GO HIDE!!!`
-        }
-        {
-          sonarTimer === 0 && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>
-        }
-        {
-          sonarTimer !== 0 && 'sonar active for ' + sonarTimer + ' seconds'
-        }
-      </Box>
-    )
+      )
+    }
   }
 }
 
