@@ -38,12 +38,10 @@ class InGame extends Component {
   componentDidMount() {
     if (this.props) {
       this.initMap()
+      this.getMatch() // toggle play btn
       geo.collection(this.props.matchId).setDoc(this.props.user.UID, { // add player to db 
         name: this.props.user.username,
       })
-        .then(() => {
-          this.getMatch() // toggle play btn
-        })
         .catch((e) => alert(`Error adding player to db`, e))
     }
   }
@@ -195,6 +193,7 @@ class InGame extends Component {
 
   render() {
     const { admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
+    console.log(initialisingTimer)
 
     if (geolocationError) {
       return <Redirect path={routes.PROFILE} />
@@ -210,7 +209,7 @@ class InGame extends Component {
             !playing && !admin && initialisingTimer !== 0 && <p>waiting for more players...</p>
           }
           {
-            initialisingTimer !== 0 && playing`Game starts in ${initialisingTimer} seconds. GO HIDE!!!`
+            initialisingTimer !== 0 && playing && `Game starts in ${initialisingTimer} seconds. GO HIDE!!!`
           }
           {
             sonarTimer === 0 && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>
