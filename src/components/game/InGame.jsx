@@ -1,10 +1,3 @@
-/*
-TODO:
-- [] watch all players live location
-- [x] check if admin
-- [] admin starts game
-*/
-
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Button } from 'grommet'
@@ -32,7 +25,8 @@ class InGame extends Component {
     sonarTimer: 0,
     playing: false,
     initialisingTimer: 0,
-    geolocationError: false
+    geolocationError: false,
+    waiting: false
   }
 
   componentDidMount() {
@@ -88,6 +82,9 @@ class InGame extends Component {
         if (doc.data().admin.id === this.props.user.UID) { // check if user is admin
           this.setState({ admin: doc.data().admin })
         }
+        if (doc.data().waiting) {
+          this.setState({ waiting: true })
+        }
         if (doc.data().initialising) { // check if game is initialising
           this.startInitialiseTimer()
         }
@@ -99,6 +96,7 @@ class InGame extends Component {
   }
 
   startInitialiseTimer = () => {
+    this.setState({ initialising: true })
     let timer = 31
     const id = setInterval(() => {
       timer = timer - 1
@@ -112,7 +110,6 @@ class InGame extends Component {
         this.playGame()
         clearInterval(id)
       }
-
     }, 1000)
   }
 
@@ -174,10 +171,10 @@ class InGame extends Component {
     map.locate({ setView: true, maxZoom: 19, watch: true, enableHighAccuracy: true })
   }
 
-  initaliseGame = () => {
+  initialiseGame = () => {
     // playersRefUnsubscribe() // remove players ref listener
     db.collection('matches').doc(this.props.matchId)
-      .update({ initialising: true })
+      .update({ initialising: true, waiting: false })
       .catch(e => console.log(`Error initialising game. ${e}`))
   }
 
@@ -192,9 +189,8 @@ class InGame extends Component {
   }
 
   render() {
-    const { admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
-    console.log(initialisingTimer)
-
+    const { waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
+    console.log(waiting)
     if (geolocationError) {
       return <Redirect path={routes.PROFILE} />
     } else {
@@ -202,14 +198,21 @@ class InGame extends Component {
         <Box align="center" >
           <Box id="map" style={{ height: "480px", width: "100%" }} >
           </Box>
-          {
-            admin && !playing && <Button onClick={this.initaliseGame} label="Play!" primary />
+          { // if waiting and admin
+            admin && waiting && (
+              <div>
+                <p>press play when all players have joined game.</p>
+                <Button onClick={this.initaliseGame} label="Play!" primary />
+              </div>
+            )
+          }
+          { // if waiting and not admin 
+            !admin && waiting && (
+              <p>waiting for more players to join...</p>
+            )
           }
           {
-            !playing && !admin && initialisingTimer !== 0 && <p>waiting for more players...</p>
-          }
-          {
-            initialisingTimer !== 0 && playing && `Game starts in ${initialisingTimer} seconds. GO HIDE!!!`
+            initialising && `Game starts in ${initialisingTimer} seconds. GO HIDE!!!`
           }
           {
             sonarTimer === 0 && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>

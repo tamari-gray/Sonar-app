@@ -50,7 +50,8 @@ class Lobby extends Component {
     db.collection('matches').add({
       admin: { id: userId, name: username },
       name: this.state.name,
-      password: this.state.password
+      password: this.state.password,
+      waiting: true
     })
       .then((docRef) => {
         db.collection('matches').doc(docRef.id).collection('players')
