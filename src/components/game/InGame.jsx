@@ -1,10 +1,3 @@
-/*
-TODO:
-- [] watch all players live location
-- [x] check if admin
-- [] admin starts game
-*/
-
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Button } from 'grommet'
@@ -31,8 +24,11 @@ class InGame extends Component {
     userLocationFound: false,
     sonarTimer: 0,
     playing: false,
-    initialisingTimer: 0,
-    geolocationError: false
+    initialisingTimer: 30,
+    geolocationError: false,
+    waiting: false,
+    tagger: false,
+    imTagger: true
   }
 
   componentDidMount() {
@@ -88,14 +84,37 @@ class InGame extends Component {
         if (doc.data().admin.id === this.props.user.UID) { // check if user is admin
           this.setState({ admin: doc.data().admin })
         }
-        if (doc.data().initialising) { // check if game is initialising
-          this.startInitialiseTimer()
-        }
-        if (doc.data().playing) { // check if game is in play
-          this.setState({ playing: true })
+
+        if (doc.data().waiting === true) {
+          this.setState({ waiting: true })
+        } else if (doc.data().waiting === false) {
+          this.setState({ waiting: false })
         }
 
+        if (doc.data().initialising) { // check if game is initialising
+          this.setState({ initialising: true })
+          this.startInitialiseTimer()
+        } else if (doc.data().initialising === false) {
+          this.setState({ initialising: false })
+        }
+
+        if (doc.data().playing) { // check if game is in play
+          this.setState({ playing: true })
+        } else if (doc.data().playing === false) {
+          this.setState({ playing: false })
+        }
+
+        if (doc.data().tagger) {
+          if (doc.data().tagger === this.props.user.username) {
+            this.setState({ imTagger: true })
+          } else {
+            this.setState({ tagger: doc.data().tagger })
+          }
+        }
       })
+  }
+
+  chooseTagger = () => {
   }
 
   startInitialiseTimer = () => {
@@ -109,10 +128,11 @@ class InGame extends Component {
         this.setState({
           initialisingTimer: 0
         })
-        this.playGame()
+        db.collection('matches').doc(this.props.matchId) // move to playing phase in firebase
+          .update({ initialising: false, playing: true })
+          .catch(e => console.log(`Error initialising game. ${e}`))
         clearInterval(id)
       }
-
     }, 1000)
   }
 
@@ -174,27 +194,26 @@ class InGame extends Component {
     map.locate({ setView: true, maxZoom: 19, watch: true, enableHighAccuracy: true })
   }
 
-  initaliseGame = () => {
-    // playersRefUnsubscribe() // remove players ref listener
+  initialiseGame = () => {
+    let players = []
+    // choose tagger
     db.collection('matches').doc(this.props.matchId)
-      .update({ initialising: true })
-      .catch(e => console.log(`Error initialising game. ${e}`))
-  }
-
-  playGame = () => {
-    db.collection('matches').doc(this.props.matchId)
-      .update({ playing: true })
-      .catch(e => console.log(`Error initialising game. ${e}`))
-  }
-
-  handleSonar = () => {
-    // this.props.dispatch(getLocations())
+      .collection('players').get()
+      .then((querySnap) => {
+        querySnap.forEach((snap) => {
+          players.push(snap.data().name)
+        })
+      })
+      .then(() => {
+        const tagger = players[Math.floor(Math.random() * players.length)]
+        db.collection('matches').doc(this.props.matchId)
+          .update({ initialising: true, waiting: false, tagger })
+          .catch(e => console.log(`Error initialising game. ${e}`))
+      })
   }
 
   render() {
-    const { admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
-    console.log(initialisingTimer)
-
+    const { imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
     if (geolocationError) {
       return <Redirect path={routes.PROFILE} />
     } else {
@@ -202,20 +221,44 @@ class InGame extends Component {
         <Box align="center" >
           <Box id="map" style={{ height: "480px", width: "100%" }} >
           </Box>
-          {
-            admin && !playing && <Button onClick={this.initaliseGame} label="Play!" primary />
+          { // if waiting and admin
+            admin && waiting && (
+              <div>
+                <p>press play when all players have joined game.</p>
+                <Button onClick={this.initialiseGame} label="Play!" primary />
+              </div>
+            )
+          }
+          { // if waiting and not admin 
+            !admin && waiting && (
+              <p>waiting for more players to join...</p>
+            )
           }
           {
-            !playing && !admin && initialisingTimer !== 0 && <p>waiting for more players...</p>
+            initialising && !imTagger && (
+              <div>
+                <h2>{`${tagger} is in!`}</h2>
+                <p>
+                  {`Game starts in ${initialisingTimer} seconds. GO HIDE!!!`}
+                </p>
+              </div>
+            )
           }
           {
-            initialisingTimer !== 0 && playing && `Game starts in ${initialisingTimer} seconds. GO HIDE!!!`
+            initialising && imTagger && (
+              <p>
+                {`you may hunt players in ${initialisingTimer} seconds`}
+              </p>
+            )
           }
           {
             sonarTimer === 0 && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>
           }
           {
             sonarTimer !== 0 && 'sonar active for ' + sonarTimer + ' seconds'
+          }
+          {
+            imTagger && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.tagPlayer}>Tag</Button>
           }
         </Box>
       )
