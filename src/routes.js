@@ -3,7 +3,8 @@ const routes = {
   SIGN_UP: '/signUp',
   PROFILE: '/profile',
   LOBBY: '/lobby',
-  GAME: '/game/:matchId'
+  GAME: '/game/:matchId',
+  FINISHED_GAME: '/game/:matchId/finished'
 }
 
 export default routes
