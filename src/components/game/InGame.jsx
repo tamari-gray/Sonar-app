@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import { db, geo } from '../../firebase'
 import routes from '../../routes'
 import { Redirect } from 'react-router-dom'
+import { get } from 'geofirex';
 
 let map = null
 let thisUser = null
@@ -42,6 +43,33 @@ class InGame extends Component {
     }
   }
 
+  putPlayersMarkersOnMap = (players) => {
+    const markers = []
+    players.forEach(player => {
+      const pos = [player.position.geopoint.latitude, player.position.geopoint.longitude]
+      const marker = L.circle(pos, { // set player marker to black 
+        color: 'red',
+        fillColor: 'green',
+        fillOpacity: 0.5,
+        // map.setView(e.latlng, 19) // watch this user's position on map
+        radius: 5
+      }).addTo(map)
+        .bindPopup(`you've tagged ${player.name}`).openPopup()
+      markers.push(marker)
+
+    })
+    let timer = 3
+    const intervalId = setInterval(() => {
+      timer = timer - 1
+      if (timer === 0) {
+        markers.forEach(marker => {
+          map.removeLayer(marker)
+        })
+        clearInterval(intervalId)
+      }
+    }, 1000)
+  }
+
   showAllPlayersLatestLocation = () => {
     // get all players from db ONCE
     let players = []
@@ -49,20 +77,20 @@ class InGame extends Component {
     db.collection(this.props.matchId).get().then(querySnapshot => {
       querySnapshot.forEach(doc => {
         if (doc.data().name !== userName) {
-          console.log(doc.data())
           const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
           const marker = L.circle(pos, { // set player marker to black 
             color: 'green',
             fillColor: 'green',
             fillOpacity: 0.5,
-            radius: 10
+            // map.setView(e.latlng, 19) // watch this user's position on map
+            radius: 5
           }).addTo(map)
             .bindPopup(doc.data().name).openPopup()
           players.push(marker)
         }
       })
     }).then(() => {
-      let timer = 10
+      let timer = 20
       const intervalId = setInterval(() => {
         timer = timer - 1
         if (timer === 0) {
@@ -85,7 +113,7 @@ class InGame extends Component {
           this.setState({ admin: doc.data().admin })
         }
 
-        if (doc.data().waiting === true) {
+        if (doc.data().waiting === true) { // check if game is in waiting phase
           this.setState({ waiting: true })
         } else if (doc.data().waiting === false) {
           this.setState({ waiting: false })
@@ -104,17 +132,24 @@ class InGame extends Component {
           this.setState({ playing: false })
         }
 
-        if (doc.data().tagger) {
+        if (doc.data().tagger) { // check who le tagger is
           if (doc.data().tagger === this.props.user.username) {
             this.setState({ imTagger: true })
           } else {
             this.setState({ tagger: doc.data().tagger })
+            // check if im tagged
+            // const imTagged = doc.data().tagged.find(({ name }) => name === this.props.user.username)
+
+            // if (imTagged !== undefined) {
+            //   this.setState({ imTagged: true })
+            // }
           }
         }
-      })
-  }
 
-  chooseTagger = () => {
+        if (doc.data().tagged) { //listen to tagged playerss
+
+        }
+      })
   }
 
   startInitialiseTimer = () => {
@@ -159,6 +194,8 @@ class InGame extends Component {
     }).addTo(map)
 
     map.on('locationfound', ((e) => {
+      this.setState({ myPosition: e.latlng })
+      console.log(this.state.myPosition)
       const point = geo.point(e.latlng.lat, e.latlng.lng)
       const matchId = this.props.matchId
       if (thisUser === null) {
@@ -166,15 +203,13 @@ class InGame extends Component {
           color: 'black',
           fillColor: '#f03',
           fillOpacity: 0.5,
-          radius: 5
+          radius: 30
         }).addTo(map)
           .bindPopup(this.props.user.username).openPopup()
-        // map.setView(e.latlng, 19) // watch this user's position on map
       } else if (thisUser) {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng)
       }
-
       db.collection(matchId).doc(this.props.user.UID).update({ // update users location in DB
         position: point.data
       })
@@ -212,8 +247,36 @@ class InGame extends Component {
       })
   }
 
+  tagPlayer = async () => {
+    const { user: { username }, matchId } = this.props
+
+    // do a geoquery for a 10m radius
+    const players = geo.collection(matchId)
+    const center = geo.point(this.state.myPosition.lat, this.state.myPosition.lng) // this players pos
+    const radius = 0.03
+    const field = 'position'
+
+    const query = players.within(center, radius, field);
+
+    // get ids of people in geoquery
+    const playersInTaggingDistance = await get(query)
+
+    // filter out this user
+    const aboutToBeTagged = playersInTaggingDistance.filter(player => player.name !== username)
+    
+    // update them => {tagged: true}
+    aboutToBeTagged && aboutToBeTagged.forEach(player => {
+      db.collection('matches').doc(matchId).collection('tagged')
+        .add({ id: player.id, name: player.name })
+        .catch(e => console.log(`Error tagging player. ${e}`))
+    })
+
+    //update ui => that youve tagged a player
+    this.putPlayersMarkersOnMap(aboutToBeTagged)
+  }
+
   render() {
-    const { imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
+    const { imTagged, imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
     if (geolocationError) {
       return <Redirect path={routes.PROFILE} />
     } else {
@@ -259,6 +322,14 @@ class InGame extends Component {
           }
           {
             imTagger && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.tagPlayer}>Tag</Button>
+          }
+
+          {
+            imTagged && (
+              <p>
+                {`please wait till the game has finished.. loser`}
+              </p>
+            )
           }
         </Box>
       )
