@@ -57,7 +57,7 @@ class Lobby extends Component {
     })
       .then((docRef) => {
         db.collection('matches').doc(docRef.id).collection('players')
-          .add({ id: userId, name: username })
+          .add({ id: userId, name: username, tagged: false })
           .then(() => this.setState({ matchId: docRef.id }))
           .catch(e => console.log(`Error adding ${username} to match. ${e}`))
       })
@@ -66,7 +66,7 @@ class Lobby extends Component {
 
   joinMatch = (matchId, userId, username) => {
     db.collection('matches').doc(matchId).collection('players')
-      .add({ id: userId, name: username })
+      .add({ id: userId, name: username, tagged: false })
       .then(() => this.setState({ matchId }))
       .catch(e => console.log(`Error joining match. ${e}`))
   }

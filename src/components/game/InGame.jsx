@@ -51,7 +51,6 @@ class InGame extends Component {
         color: 'red',
         fillColor: 'green',
         fillOpacity: 0.5,
-        // map.setView(e.latlng, 19) // watch this user's position on map
         radius: 5
       }).addTo(map)
         .bindPopup(`you've tagged ${player.name}`).openPopup()
@@ -77,16 +76,18 @@ class InGame extends Component {
     db.collection(this.props.matchId).get().then(querySnapshot => {
       querySnapshot.forEach(doc => {
         if (doc.data().name !== userName) {
-          const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
-          const marker = L.circle(pos, { // set player marker to black 
-            color: 'green',
-            fillColor: 'green',
-            fillOpacity: 0.5,
-            // map.setView(e.latlng, 19) // watch this user's position on map
-            radius: 5
-          }).addTo(map)
-            .bindPopup(doc.data().name).openPopup()
-          players.push(marker)
+          if (!doc.data().tagged) {
+            const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
+            const marker = L.circle(pos, { // set player marker to black 
+              color: 'green',
+              fillColor: 'green',
+              fillOpacity: 0.5,
+              // map.setView(e.latlng, 19) // watch this user's position on map
+              radius: 5
+            }).addTo(map)
+              .bindPopup(doc.data().name).openPopup()
+            players.push(marker)
+          }
         }
       })
     }).then(() => {
@@ -195,7 +196,6 @@ class InGame extends Component {
 
     map.on('locationfound', ((e) => {
       this.setState({ myPosition: e.latlng })
-      console.log(this.state.myPosition)
       const point = geo.point(e.latlng.lat, e.latlng.lng)
       const matchId = this.props.matchId
       if (thisUser === null) {
@@ -253,7 +253,7 @@ class InGame extends Component {
     // do a geoquery for a 10m radius
     const players = geo.collection(matchId)
     const center = geo.point(this.state.myPosition.lat, this.state.myPosition.lng) // this players pos
-    const radius = 0.03
+    const radius = 0.05
     const field = 'position'
 
     const query = players.within(center, radius, field);
@@ -261,14 +261,15 @@ class InGame extends Component {
     // get ids of people in geoquery
     const playersInTaggingDistance = await get(query)
 
+    // filter out tagged players
+    const notTaggedPlayers = playersInTaggingDistance.filter(player => !player.tagged)
+
     // filter out this user
-    const aboutToBeTagged = playersInTaggingDistance.filter(player => player.name !== username)
-    
-    // update them => {tagged: true}
-    aboutToBeTagged && aboutToBeTagged.forEach(player => {
-      db.collection('matches').doc(matchId).collection('tagged')
-        .add({ id: player.id, name: player.name })
-        .catch(e => console.log(`Error tagging player. ${e}`))
+    const aboutToBeTagged = notTaggedPlayers.filter(player => player.name !== username)
+
+    aboutToBeTagged && aboutToBeTagged.forEach((player) => {
+      db.collection(matchId).doc(player.id)
+        .update({ tagged: true })
     })
 
     //update ui => that youve tagged a player
