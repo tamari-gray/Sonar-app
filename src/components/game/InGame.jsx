@@ -29,7 +29,8 @@ class InGame extends Component {
     geolocationError: false,
     waiting: false,
     tagger: false,
-    imTagger: false
+    imTagger: false,
+    allPlayersTagged: false
   }
 
   componentDidMount() {
@@ -42,6 +43,7 @@ class InGame extends Component {
       })
         .catch((e) => alert(`Error adding player to db`, e))
       this.checkIfImTagged()
+      this.checkIfAllPlayersAreTagged()
     }
   }
 
@@ -279,10 +281,32 @@ class InGame extends Component {
       })
   }
 
+  checkIfAllPlayersAreTagged = () => {
+    db.collection(this.props.matchId)
+      .onSnapshot(function (querySnapshot) {
+        const size = querySnapshot.size
+        querySnapshot.forEach(function (doc) {
+          // const players = []
+          // if (doc.data().tagged) {
+          //   players.push(doc.data())
+          //   console.log(doc.data().name)  
+          // }
+          // console.log(players.length, size)
+          // if (players.length === (size - 1)) {
+          // this.setState({ allPlayersTagged: true })
+          // }
+        })
+        // if (players.length === 1) {
+        // }
+      })
+  }
+
   render() {
-    const { imTagged, imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
+    const { allPlayersTagged, imTagged, imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
     if (geolocationError) {
       return <Redirect path={routes.PROFILE} />
+    } else if (allPlayersTagged) {
+      return <Redirect path={`game/${this.props.matchId}/finished`} />
     } else {
       return (
         <Box align="center" >
@@ -335,6 +359,7 @@ class InGame extends Component {
               </p>
             )
           }
+
         </Box>
       )
     }
