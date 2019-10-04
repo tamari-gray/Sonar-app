@@ -38,8 +38,10 @@ class InGame extends Component {
       this.getMatch() // toggle play btn
       geo.collection(this.props.matchId).setDoc(this.props.user.UID, { // add player to db 
         name: this.props.user.username,
+        tagged: false
       })
         .catch((e) => alert(`Error adding player to db`, e))
+      this.checkIfImTagged()
     }
   }
 
@@ -138,17 +140,7 @@ class InGame extends Component {
             this.setState({ imTagger: true })
           } else {
             this.setState({ tagger: doc.data().tagger })
-            // check if im tagged
-            // const imTagged = doc.data().tagged.find(({ name }) => name === this.props.user.username)
-
-            // if (imTagged !== undefined) {
-            //   this.setState({ imTagged: true })
-            // }
           }
-        }
-
-        if (doc.data().tagged) { //listen to tagged playerss
-
         }
       })
   }
@@ -256,7 +248,7 @@ class InGame extends Component {
     const radius = 0.05
     const field = 'position'
 
-    const query = players.within(center, radius, field);
+    const query = players.within(center, radius, field)
 
     // get ids of people in geoquery
     const playersInTaggingDistance = await get(query)
@@ -274,6 +266,17 @@ class InGame extends Component {
 
     //update ui => that youve tagged a player
     this.putPlayersMarkersOnMap(aboutToBeTagged)
+  }
+
+  checkIfImTagged = () => {
+    db.collection(this.props.matchId).doc(this.props.user.UID)
+      .onSnapshot(doc => {
+        if (doc.data() !== undefined) {
+          if (doc.data().tagged) {
+            this.setState({ imTagged: true })
+          }
+        }
+      })
   }
 
   render() {
@@ -316,7 +319,7 @@ class InGame extends Component {
             )
           }
           {
-            sonarTimer === 0 && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>
+            !imTagged && sonarTimer === 0 && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>
           }
           {
             sonarTimer !== 0 && 'sonar active for ' + sonarTimer + ' seconds'
