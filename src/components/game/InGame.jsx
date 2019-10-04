@@ -28,7 +28,7 @@ class InGame extends Component {
     geolocationError: false,
     waiting: false,
     tagger: false,
-    imTagger: true
+    imTagger: false
   }
 
   componentDidMount() {
