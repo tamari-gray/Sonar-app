@@ -24,7 +24,9 @@ const App: React.FC = () => {
           <Route path={routes.GAME} exact render={routeProps =>
             <InGame matchId={routeProps.match.params.matchId}/>
           } />
-          <Route path={routes.FINISHED_GAME} exact component={FinishedGame} />
+          <Route path={routes.FINISHED_GAME} exact render={routeProps =>
+            <FinishedGame matchId={routeProps.match.params.matchId}/>
+          } />
         </Switch>
       </Router>
     </Grommet>

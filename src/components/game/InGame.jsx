@@ -30,7 +30,8 @@ class InGame extends Component {
     waiting: false,
     tagger: false,
     imTagger: false,
-    allPlayersTagged: false
+    allPlayersTagged: false,
+    finished: false
   }
 
   componentDidMount() {
@@ -139,10 +140,14 @@ class InGame extends Component {
 
         if (doc.data().tagger) { // check who le tagger is
           if (doc.data().tagger === this.props.user.username) {
-            this.setState({ imTagger: true })
+            this.setState({ imTagger: true, tagger: doc.data().tagger })
           } else {
             this.setState({ tagger: doc.data().tagger })
           }
+        }
+
+        if (doc.data().finished) {
+          this.setState({ finished: true })
         }
       })
   }
@@ -230,13 +235,17 @@ class InGame extends Component {
       .collection('players').get()
       .then((querySnap) => {
         querySnap.forEach((snap) => {
-          players.push(snap.data().name)
+          players.push({ id: snap.data().id, name: snap.data().name })
         })
       })
       .then(() => {
         const tagger = players[Math.floor(Math.random() * players.length)]
         db.collection('matches').doc(this.props.matchId)
-          .update({ initialising: true, waiting: false, tagger })
+          .update({ initialising: true, waiting: false, tagger: tagger.name })
+          .catch(e => console.log(`Error initialising game. ${e}`))
+
+        db.collection(this.props.matchId).doc(tagger.id)
+          .update({ tagger: true })
           .catch(e => console.log(`Error initialising game. ${e}`))
       })
   }
@@ -283,30 +292,36 @@ class InGame extends Component {
 
   checkIfAllPlayersAreTagged = () => {
     db.collection(this.props.matchId)
-      .onSnapshot(function (querySnapshot) {
-        const size = querySnapshot.size
+      .onSnapshot(querySnapshot => {
+        const players = []
         querySnapshot.forEach(function (doc) {
-          // const players = []
-          // if (doc.data().tagged) {
-          //   players.push(doc.data())
-          //   console.log(doc.data().name)  
-          // }
-          // console.log(players.length, size)
-          // if (players.length === (size - 1)) {
-          // this.setState({ allPlayersTagged: true })
-          // }
+          players.push(doc.data())
         })
-        // if (players.length === 1) {
-        // }
+        const filterOutTagger = players.filter(player => player.name !== this.state.tagger)
+
+        const allPlayersTaggged = filterOutTagger.every(player => player.tagged)
+
+        if (allPlayersTaggged) {
+          db.collection('matches').doc(this.props.matchId)
+            .update({
+              initialising: false,
+              waiting: false,
+              playing: false,
+              finished: true
+            })
+            .catch(function (error) {
+              console.log("Error ending game", error)
+            })
+        }
       })
   }
 
   render() {
-    const { allPlayersTagged, imTagged, imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
+    const { finished, imTagged, imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
     if (geolocationError) {
-      return <Redirect path={routes.PROFILE} />
-    } else if (allPlayersTagged) {
-      return <Redirect path={`game/${this.props.matchId}/finished`} />
+      return <Redirect to={routes.PROFILE} />
+    } else if (finished) {
+      return <Redirect to={`${this.props.matchId}/finished`} />
     } else {
       return (
         <Box align="center" >
@@ -351,7 +366,6 @@ class InGame extends Component {
           {
             imTagger && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.tagPlayer}>Tag</Button>
           }
-
           {
             imTagged && (
               <p>
@@ -359,7 +373,6 @@ class InGame extends Component {
               </p>
             )
           }
-
         </Box>
       )
     }
