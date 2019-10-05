@@ -12,9 +12,9 @@ let map = null
 let thisUser = null
 
 // firebase listeners
-let DBgetMatch
-let DBtagged
-let DBcheckIfAllPlayersTagged
+let DBgetMatch = null
+let DBtagged = null
+let DBcheckIfAllPlayersTagged = null
 
 class InGame extends Component {
   state = {
@@ -332,6 +332,13 @@ class InGame extends Component {
     DBcheckIfAllPlayersTagged()
     DBgetMatch()
     DBtagged()
+    map = null
+    thisUser = null
+
+    // firebase listeners
+    DBgetMatch = null
+    DBtagged = null
+    DBcheckIfAllPlayersTagged = null
   }
 
   render() {
