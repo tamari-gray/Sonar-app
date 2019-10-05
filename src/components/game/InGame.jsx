@@ -11,6 +11,11 @@ import { get } from 'geofirex';
 let map = null
 let thisUser = null
 
+// firebase listeners
+let DBgetMatch
+let DBtagged
+let DBcheckIfAllPlayersTagged
+
 class InGame extends Component {
   state = {
     boundary: {
@@ -87,7 +92,6 @@ class InGame extends Component {
               color: 'green',
               fillColor: 'green',
               fillOpacity: 0.5,
-              // map.setView(e.latlng, 19) // watch this user's position on map
               radius: 5
             }).addTo(map)
               .bindPopup(doc.data().name).openPopup()
@@ -113,7 +117,7 @@ class InGame extends Component {
   }
 
   getMatch = () => {
-    db.collection('matches').doc(this.props.matchId)
+    DBgetMatch = db.collection('matches').doc(this.props.matchId)
       .onSnapshot((doc) => {
         if (doc.data().admin.id === this.props.user.UID) { // check if user is admin
           this.setState({ admin: doc.data().admin })
@@ -280,7 +284,7 @@ class InGame extends Component {
   }
 
   checkIfImTagged = () => {
-    db.collection(this.props.matchId).doc(this.props.user.UID)
+    DBtagged = db.collection(this.props.matchId).doc(this.props.user.UID)
       .onSnapshot(doc => {
         if (doc.data() !== undefined) {
           if (doc.data().tagged) {
@@ -291,7 +295,7 @@ class InGame extends Component {
   }
 
   checkIfAllPlayersAreTagged = () => {
-    db.collection(this.props.matchId)
+    DBcheckIfAllPlayersTagged = db.collection(this.props.matchId)
       .onSnapshot(querySnapshot => {
         const players = []
         querySnapshot.forEach(function (doc) {
@@ -314,6 +318,12 @@ class InGame extends Component {
             })
         }
       })
+  }
+
+  componentWillUnmount() {  // unsubscribe firestore listeners
+    DBcheckIfAllPlayersTagged()
+    DBgetMatch()
+    DBtagged()
   }
 
   render() {
