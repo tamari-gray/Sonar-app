@@ -2,7 +2,9 @@ import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet'
 import { Redirect } from 'react-router-dom'
-import { db } from '../../firebase';
+import { db } from '../../firebase'
+
+let DBGetMatches = null
 
 class Lobby extends Component {
   state = {
@@ -21,10 +23,12 @@ class Lobby extends Component {
 
   componentWillUnmount() {
     // cancel get matches 
+    DBGetMatches()
+    DBGetMatches = null
   }
 
   getMatches = (userId) => {
-    db.collection('matches')
+   DBGetMatches = db.collection('matches')
       .onSnapshot(snapshot => {
         const matches = []
         snapshot.forEach(doc => {
@@ -50,11 +54,14 @@ class Lobby extends Component {
     db.collection('matches').add({
       admin: { id: userId, name: username },
       name: this.state.name,
-      password: this.state.password
+      password: this.state.password,
+      waiting: true,
+      playing: false,
+      initialising: false
     })
       .then((docRef) => {
         db.collection('matches').doc(docRef.id).collection('players')
-          .add({ id: userId, name: username })
+          .add({ id: userId, name: username, tagged: false })
           .then(() => this.setState({ matchId: docRef.id }))
           .catch(e => console.log(`Error adding ${username} to match. ${e}`))
       })
@@ -63,7 +70,7 @@ class Lobby extends Component {
 
   joinMatch = (matchId, userId, username) => {
     db.collection('matches').doc(matchId).collection('players')
-      .add({ id: userId, name: username })
+      .add({ id: userId, name: username, tagged: false })
       .then(() => this.setState({ matchId }))
       .catch(e => console.log(`Error joining match. ${e}`))
   }
