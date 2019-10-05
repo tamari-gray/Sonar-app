@@ -214,7 +214,7 @@ class InGame extends Component {
           color: 'black',
           fillColor: '#f03',
           fillOpacity: 0.5,
-          radius: 30
+          radius: 10
         }).addTo(map)
           .bindPopup(this.props.user.username).openPopup()
       } else if (thisUser) {
@@ -268,7 +268,7 @@ class InGame extends Component {
     // do a geoquery for a 10m radius
     const players = geo.collection(matchId)
     const center = geo.point(this.state.myPosition.lat, this.state.myPosition.lng) // this players pos
-    const radius = 0.05
+    const radius = 0.01
     const field = 'position'
 
     const query = players.within(center, radius, field)
@@ -328,14 +328,12 @@ class InGame extends Component {
       })
   }
 
-  componentWillUnmount() {  // unsubscribe firestore listeners
+  componentWillUnmount() {  // unsubscribe firestore listeners & reset global vars
     DBcheckIfAllPlayersTagged()
     DBgetMatch()
     DBtagged()
     map = null
     thisUser = null
-
-    // firebase listeners
     DBgetMatch = null
     DBtagged = null
     DBcheckIfAllPlayersTagged = null
@@ -378,6 +376,7 @@ class InGame extends Component {
           {
             initialising && imTagger && (
               <p>
+                Your in! <br/>
                 {`you may hunt players in ${initialisingTimer} seconds`}
               </p>
             )
