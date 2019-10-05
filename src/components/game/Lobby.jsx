@@ -2,7 +2,9 @@ import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet'
 import { Redirect } from 'react-router-dom'
-import { db } from '../../firebase';
+import { db } from '../../firebase'
+
+let DBGetMatches = null
 
 class Lobby extends Component {
   state = {
@@ -21,10 +23,12 @@ class Lobby extends Component {
 
   componentWillUnmount() {
     // cancel get matches 
+    DBGetMatches()
+    DBGetMatches = null
   }
 
   getMatches = (userId) => {
-    db.collection('matches')
+   DBGetMatches = db.collection('matches')
       .onSnapshot(snapshot => {
         const matches = []
         snapshot.forEach(doc => {

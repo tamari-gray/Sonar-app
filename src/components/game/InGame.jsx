@@ -6,10 +6,15 @@ import 'leaflet/dist/leaflet.css'
 import { db, geo } from '../../firebase'
 import routes from '../../routes'
 import { Redirect } from 'react-router-dom'
-import { get } from 'geofirex';
+import { get } from 'geofirex'
 
 let map = null
 let thisUser = null
+
+// firebase listeners
+let DBgetMatch = null
+let DBtagged = null
+let DBcheckIfAllPlayersTagged = null
 
 class InGame extends Component {
   state = {
@@ -87,7 +92,6 @@ class InGame extends Component {
               color: 'green',
               fillColor: 'green',
               fillOpacity: 0.5,
-              // map.setView(e.latlng, 19) // watch this user's position on map
               radius: 5
             }).addTo(map)
               .bindPopup(doc.data().name).openPopup()
@@ -113,7 +117,7 @@ class InGame extends Component {
   }
 
   getMatch = () => {
-    db.collection('matches').doc(this.props.matchId)
+    DBgetMatch = db.collection('matches').doc(this.props.matchId)
       .onSnapshot((doc) => {
         if (doc.data().admin.id === this.props.user.UID) { // check if user is admin
           this.setState({ admin: doc.data().admin })
@@ -147,6 +151,14 @@ class InGame extends Component {
         }
 
         if (doc.data().finished) {
+          if (this.state.admin) {
+            db.collection('matches').doc(this.props.matchId).delete()
+              .then(function () {
+                console.log("game successfully deleted!")
+              }).catch(function (error) {
+                console.error("Error removing match from db: ", error);
+              })
+          }
           this.setState({ finished: true })
         }
       })
@@ -197,12 +209,12 @@ class InGame extends Component {
       this.setState({ myPosition: e.latlng })
       const point = geo.point(e.latlng.lat, e.latlng.lng)
       const matchId = this.props.matchId
-      if (thisUser === null) {
+      if (thisUser === null && map !== null) {
         thisUser = L.circle(e.latlng, { // set player marker to black 
           color: 'black',
           fillColor: '#f03',
           fillOpacity: 0.5,
-          radius: 30
+          radius: 10
         }).addTo(map)
           .bindPopup(this.props.user.username).openPopup()
       } else if (thisUser) {
@@ -256,7 +268,7 @@ class InGame extends Component {
     // do a geoquery for a 10m radius
     const players = geo.collection(matchId)
     const center = geo.point(this.state.myPosition.lat, this.state.myPosition.lng) // this players pos
-    const radius = 0.05
+    const radius = 0.01
     const field = 'position'
 
     const query = players.within(center, radius, field)
@@ -280,7 +292,7 @@ class InGame extends Component {
   }
 
   checkIfImTagged = () => {
-    db.collection(this.props.matchId).doc(this.props.user.UID)
+    DBtagged = db.collection(this.props.matchId).doc(this.props.user.UID)
       .onSnapshot(doc => {
         if (doc.data() !== undefined) {
           if (doc.data().tagged) {
@@ -291,7 +303,7 @@ class InGame extends Component {
   }
 
   checkIfAllPlayersAreTagged = () => {
-    db.collection(this.props.matchId)
+    DBcheckIfAllPlayersTagged = db.collection(this.props.matchId)
       .onSnapshot(querySnapshot => {
         const players = []
         querySnapshot.forEach(function (doc) {
@@ -314,6 +326,17 @@ class InGame extends Component {
             })
         }
       })
+  }
+
+  componentWillUnmount() {  // unsubscribe firestore listeners & reset global vars
+    DBcheckIfAllPlayersTagged()
+    DBgetMatch()
+    DBtagged()
+    map = null
+    thisUser = null
+    DBgetMatch = null
+    DBtagged = null
+    DBcheckIfAllPlayersTagged = null
   }
 
   render() {
@@ -353,6 +376,7 @@ class InGame extends Component {
           {
             initialising && imTagger && (
               <p>
+                Your in! <br/>
                 {`you may hunt players in ${initialisingTimer} seconds`}
               </p>
             )
