@@ -201,8 +201,8 @@ class InGame extends Component {
     const boundary = L.circle([this.state.boundary.lat, this.state.boundary.lng], {
       color: 'blue',
       fillColor: '#f03',
-      fillOpacity: 0.5,
-      radius: 200
+      fillOpacity: 0.3,
+      radius: 100
     }).addTo(map)
 
     map.on('locationfound', ((e) => {
@@ -237,7 +237,7 @@ class InGame extends Component {
       }, 5000)
     }))
 
-    map.locate({ setView: true, maxZoom: 19, watch: true, enableHighAccuracy: true })
+    map.locate({ maxZoom: 22, watch: true, enableHighAccuracy: true })
   }
 
   initialiseGame = () => {
