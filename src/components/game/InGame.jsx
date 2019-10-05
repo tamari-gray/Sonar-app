@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import { db, geo } from '../../firebase'
 import routes from '../../routes'
 import { Redirect } from 'react-router-dom'
+import { get } from 'geofirex';
 
 let map = null
 let thisUser = null
@@ -28,7 +29,9 @@ class InGame extends Component {
     geolocationError: false,
     waiting: false,
     tagger: false,
-    imTagger: true
+    imTagger: false,
+    allPlayersTagged: false,
+    finished: false
   }
 
   componentDidMount() {
@@ -37,9 +40,38 @@ class InGame extends Component {
       this.getMatch() // toggle play btn
       geo.collection(this.props.matchId).setDoc(this.props.user.UID, { // add player to db 
         name: this.props.user.username,
+        tagged: false
       })
         .catch((e) => alert(`Error adding player to db`, e))
+      this.checkIfImTagged()
+      this.checkIfAllPlayersAreTagged()
     }
+  }
+
+  putPlayersMarkersOnMap = (players) => {
+    const markers = []
+    players.forEach(player => {
+      const pos = [player.position.geopoint.latitude, player.position.geopoint.longitude]
+      const marker = L.circle(pos, { // set player marker to black 
+        color: 'red',
+        fillColor: 'green',
+        fillOpacity: 0.5,
+        radius: 5
+      }).addTo(map)
+        .bindPopup(`you've tagged ${player.name}`).openPopup()
+      markers.push(marker)
+
+    })
+    let timer = 3
+    const intervalId = setInterval(() => {
+      timer = timer - 1
+      if (timer === 0) {
+        markers.forEach(marker => {
+          map.removeLayer(marker)
+        })
+        clearInterval(intervalId)
+      }
+    }, 1000)
   }
 
   showAllPlayersLatestLocation = () => {
@@ -49,20 +81,22 @@ class InGame extends Component {
     db.collection(this.props.matchId).get().then(querySnapshot => {
       querySnapshot.forEach(doc => {
         if (doc.data().name !== userName) {
-          console.log(doc.data())
-          const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
-          const marker = L.circle(pos, { // set player marker to black 
-            color: 'green',
-            fillColor: 'green',
-            fillOpacity: 0.5,
-            radius: 10
-          }).addTo(map)
-            .bindPopup(doc.data().name).openPopup()
-          players.push(marker)
+          if (!doc.data().tagged) {
+            const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
+            const marker = L.circle(pos, { // set player marker to black 
+              color: 'green',
+              fillColor: 'green',
+              fillOpacity: 0.5,
+              // map.setView(e.latlng, 19) // watch this user's position on map
+              radius: 5
+            }).addTo(map)
+              .bindPopup(doc.data().name).openPopup()
+            players.push(marker)
+          }
         }
       })
     }).then(() => {
-      let timer = 10
+      let timer = 20
       const intervalId = setInterval(() => {
         timer = timer - 1
         if (timer === 0) {
@@ -85,7 +119,7 @@ class InGame extends Component {
           this.setState({ admin: doc.data().admin })
         }
 
-        if (doc.data().waiting === true) {
+        if (doc.data().waiting === true) { // check if game is in waiting phase
           this.setState({ waiting: true })
         } else if (doc.data().waiting === false) {
           this.setState({ waiting: false })
@@ -104,17 +138,18 @@ class InGame extends Component {
           this.setState({ playing: false })
         }
 
-        if (doc.data().tagger) {
+        if (doc.data().tagger) { // check who le tagger is
           if (doc.data().tagger === this.props.user.username) {
-            this.setState({ imTagger: true })
+            this.setState({ imTagger: true, tagger: doc.data().tagger })
           } else {
             this.setState({ tagger: doc.data().tagger })
           }
         }
-      })
-  }
 
-  chooseTagger = () => {
+        if (doc.data().finished) {
+          this.setState({ finished: true })
+        }
+      })
   }
 
   startInitialiseTimer = () => {
@@ -159,6 +194,7 @@ class InGame extends Component {
     }).addTo(map)
 
     map.on('locationfound', ((e) => {
+      this.setState({ myPosition: e.latlng })
       const point = geo.point(e.latlng.lat, e.latlng.lng)
       const matchId = this.props.matchId
       if (thisUser === null) {
@@ -166,15 +202,13 @@ class InGame extends Component {
           color: 'black',
           fillColor: '#f03',
           fillOpacity: 0.5,
-          radius: 5
+          radius: 30
         }).addTo(map)
           .bindPopup(this.props.user.username).openPopup()
-        // map.setView(e.latlng, 19) // watch this user's position on map
       } else if (thisUser) {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng)
       }
-
       db.collection(matchId).doc(this.props.user.UID).update({ // update users location in DB
         position: point.data
       })
@@ -201,21 +235,93 @@ class InGame extends Component {
       .collection('players').get()
       .then((querySnap) => {
         querySnap.forEach((snap) => {
-          players.push(snap.data().name)
+          players.push({ id: snap.data().id, name: snap.data().name })
         })
       })
       .then(() => {
         const tagger = players[Math.floor(Math.random() * players.length)]
         db.collection('matches').doc(this.props.matchId)
-          .update({ initialising: true, waiting: false, tagger })
+          .update({ initialising: true, waiting: false, tagger: tagger.name })
+          .catch(e => console.log(`Error initialising game. ${e}`))
+
+        db.collection(this.props.matchId).doc(tagger.id)
+          .update({ tagger: true })
           .catch(e => console.log(`Error initialising game. ${e}`))
       })
   }
 
+  tagPlayer = async () => {
+    const { user: { username }, matchId } = this.props
+
+    // do a geoquery for a 10m radius
+    const players = geo.collection(matchId)
+    const center = geo.point(this.state.myPosition.lat, this.state.myPosition.lng) // this players pos
+    const radius = 0.05
+    const field = 'position'
+
+    const query = players.within(center, radius, field)
+
+    // get ids of people in geoquery
+    const playersInTaggingDistance = await get(query)
+
+    // filter out tagged players
+    const notTaggedPlayers = playersInTaggingDistance.filter(player => !player.tagged)
+
+    // filter out this user
+    const aboutToBeTagged = notTaggedPlayers.filter(player => player.name !== username)
+
+    aboutToBeTagged && aboutToBeTagged.forEach((player) => {
+      db.collection(matchId).doc(player.id)
+        .update({ tagged: true })
+    })
+
+    //update ui => that youve tagged a player
+    this.putPlayersMarkersOnMap(aboutToBeTagged)
+  }
+
+  checkIfImTagged = () => {
+    db.collection(this.props.matchId).doc(this.props.user.UID)
+      .onSnapshot(doc => {
+        if (doc.data() !== undefined) {
+          if (doc.data().tagged) {
+            this.setState({ imTagged: true })
+          }
+        }
+      })
+  }
+
+  checkIfAllPlayersAreTagged = () => {
+    db.collection(this.props.matchId)
+      .onSnapshot(querySnapshot => {
+        const players = []
+        querySnapshot.forEach(function (doc) {
+          players.push(doc.data())
+        })
+        const filterOutTagger = players.filter(player => player.name !== this.state.tagger)
+
+        const allPlayersTaggged = filterOutTagger.every(player => player.tagged)
+
+        if (allPlayersTaggged) {
+          db.collection('matches').doc(this.props.matchId)
+            .update({
+              initialising: false,
+              waiting: false,
+              playing: false,
+              finished: true
+            })
+            .catch(function (error) {
+              console.log("Error ending game", error)
+            })
+        }
+      })
+  }
+
   render() {
-    const { imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
+    const { finished, imTagged, imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
     if (geolocationError) {
-      return <Redirect path={routes.PROFILE} />
+      return <Redirect to={routes.PROFILE} />
+    } else if (finished) {
+      return <Redirect to={`${this.props.matchId}/finished`} />
     } else {
       return (
         <Box align="center" >
@@ -252,13 +358,20 @@ class InGame extends Component {
             )
           }
           {
-            sonarTimer === 0 && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>
+            !imTagged && sonarTimer === 0 && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.showAllPlayersLatestLocation}> send sonar </Button>
           }
           {
             sonarTimer !== 0 && 'sonar active for ' + sonarTimer + ' seconds'
           }
           {
             imTagger && playing && <Button primary style={{ padding: '0.8em' }} onClick={this.tagPlayer}>Tag</Button>
+          }
+          {
+            imTagged && (
+              <p>
+                {`please wait till the game has finished.. loser`}
+              </p>
+            )
           }
         </Box>
       )

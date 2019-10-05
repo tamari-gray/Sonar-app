@@ -9,6 +9,7 @@ import Profile from './Profile'
 import Lobby from './game/Lobby'
 import InGame from './game/InGame'
 import routes from '../routes'
+import { FinishedGame } from './game/FinishedGame'
 
 const App: React.FC = () => {
   return (
@@ -22,6 +23,9 @@ const App: React.FC = () => {
           <Route path={routes.LOBBY} exact component={Lobby} />
           <Route path={routes.GAME} exact render={routeProps =>
             <InGame matchId={routeProps.match.params.matchId}/>
+          } />
+          <Route path={routes.FINISHED_GAME} exact render={routeProps =>
+            <FinishedGame matchId={routeProps.match.params.matchId}/>
           } />
         </Switch>
       </Router>
