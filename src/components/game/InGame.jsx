@@ -209,7 +209,7 @@ class InGame extends Component {
       this.setState({ myPosition: e.latlng })
       const point = geo.point(e.latlng.lat, e.latlng.lng)
       const matchId = this.props.matchId
-      if (thisUser === null) {
+      if (thisUser === null && map !== null) {
         thisUser = L.circle(e.latlng, { // set player marker to black 
           color: 'black',
           fillColor: '#f03',
