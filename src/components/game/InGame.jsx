@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import { db, geo } from '../../firebase'
 import routes from '../../routes'
 import { Redirect } from 'react-router-dom'
-import { get } from 'geofirex';
+import { get } from 'geofirex'
 
 let map = null
 let thisUser = null
@@ -151,6 +151,14 @@ class InGame extends Component {
         }
 
         if (doc.data().finished) {
+          if (this.state.admin) {
+            db.collection('matches').doc(this.props.matchId).delete()
+              .then(function () {
+                console.log("game successfully deleted!")
+              }).catch(function (error) {
+                console.error("Error removing match from db: ", error);
+              })
+          }
           this.setState({ finished: true })
         }
       })
