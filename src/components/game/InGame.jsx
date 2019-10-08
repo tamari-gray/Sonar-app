@@ -36,7 +36,8 @@ class InGame extends Component {
     tagger: false,
     imTagger: false,
     allPlayersTagged: false,
-    finished: false
+    finished: false,
+    gameTimer: 10
   }
 
   componentDidMount() {
@@ -158,6 +159,8 @@ class InGame extends Component {
               }).catch(function (error) {
                 console.error("Error removing match from db: ", error);
               })
+
+            //TODO: delete match collection here
           }
           this.setState({ finished: true })
         }
@@ -340,7 +343,7 @@ class InGame extends Component {
   }
 
   render() {
-    const { finished, imTagged, imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
+    const { gameTimer, finished, imTagged, imTagger, tagger, waiting, initialising, admin, geolocationError, playing, sonarTimer, initialisingTimer } = this.state
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />
     } else if (finished) {
@@ -376,7 +379,7 @@ class InGame extends Component {
           {
             initialising && imTagger && (
               <p>
-                Your in! <br/>
+                Your in! <br />
                 {`you may hunt players in ${initialisingTimer} seconds`}
               </p>
             )
@@ -395,6 +398,14 @@ class InGame extends Component {
               <p>
                 {`please wait till the game has finished.. loser`}
               </p>
+            )
+          }
+
+          {
+            gameTimer && (
+              <div>
+                <p style={{ color: 'red' }}>{gameTimer}</p>
+              </div>
             )
           }
         </Box>
