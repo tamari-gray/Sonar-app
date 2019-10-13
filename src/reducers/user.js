@@ -1,4 +1,4 @@
-import { GET_USER, GET_USER_INFO } from '../actions/user'
+import { GET_USER, GET_USER_INFO, REMOVE_USER } from '../actions/user'
 
 const initialState = null
 
@@ -8,6 +8,8 @@ export default (state = initialState, { type, payload }) => {
       return { UID: payload, ...state  }
     case GET_USER_INFO:
       return { ...state, ...payload }
+      case REMOVE_USER:
+        return initialState
     default:
       return state
   }
