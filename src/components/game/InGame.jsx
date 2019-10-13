@@ -1,9 +1,10 @@
+import * as firebase from 'firebase/app'
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Button } from 'grommet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { db, geo } from '../../firebase'
+import { db } from '../../firebase'
 import routes from '../../routes'
 import { Redirect } from 'react-router-dom'
 import { get } from 'geofirex'
@@ -44,11 +45,6 @@ class InGame extends Component {
     if (this.props) {
       this.initMap()
       this.getMatch() // toggle play btn
-      geo.collection(this.props.matchId).setDoc(this.props.user.UID, { // add player to db 
-        name: this.props.user.username,
-        tagged: false
-      })
-        .catch((e) => alert(`Error adding player to db`, e))
       this.checkIfImTagged()
       this.checkIfAllPlayersAreTagged()
     }
@@ -66,7 +62,6 @@ class InGame extends Component {
       }).addTo(map)
         .bindPopup(`you've tagged ${player.name}`).openPopup()
       markers.push(marker)
-
     })
     let timer = 3
     const intervalId = setInterval(() => {
@@ -84,11 +79,12 @@ class InGame extends Component {
     // get all players from db ONCE
     let players = []
     const userName = this.props.user.username
-    db.collection(this.props.matchId).get().then(querySnapshot => {
+    db.collection('matches').doc(this.props.matchId).collection('players')
+    .get().then(querySnapshot => {
       querySnapshot.forEach(doc => {
         if (doc.data().name !== userName) {
           if (!doc.data().tagged) {
-            const pos = [doc.data().position.geopoint.latitude, doc.data().position.geopoint.longitude]
+            const pos = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
             const marker = L.circle(pos, { // set player marker to black 
               color: 'green',
               fillColor: 'green',
@@ -159,8 +155,6 @@ class InGame extends Component {
               }).catch(function (error) {
                 console.error("Error removing match from db: ", error);
               })
-
-            //TODO: delete match collection here
           }
           this.setState({ finished: true })
         }
@@ -210,7 +204,8 @@ class InGame extends Component {
 
     map.on('locationfound', ((e) => {
       this.setState({ myPosition: e.latlng })
-      const point = geo.point(e.latlng.lat, e.latlng.lng)
+      // const point = geo.point(e.latlng.lat, e.latlng.lng)
+      const pos = new firebase.firestore.GeoPoint(e.latlng.lat, e.latlng.lng)
       const matchId = this.props.matchId
       if (thisUser === null && map !== null) {
         thisUser = L.circle(e.latlng, { // set player marker to black 
@@ -224,8 +219,8 @@ class InGame extends Component {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng)
       }
-      db.collection(matchId).doc(this.props.user.UID).update({ // update users location in DB
-        position: point.data
+      db.collection('matches').doc(matchId).collection('players').doc(this.props.user.UID).update({ // update users location in DB
+        coordinates: pos
       })
     }))
 
@@ -259,54 +254,44 @@ class InGame extends Component {
           .update({ initialising: true, waiting: false, tagger: tagger.name })
           .catch(e => console.log(`Error initialising game. ${e}`))
 
-        db.collection(this.props.matchId).doc(tagger.id)
-          .update({ tagger: true })
-          .catch(e => console.log(`Error initialising game. ${e}`))
+        db.collection('matches').doc(this.props.matchId).collection('players').doc(tagger.id)
+        .update({ tagger: true })
+        .catch(e => console.log(`Error initialising game. ${e}`))
       })
   }
 
-  tagPlayer = async () => {
-    const { user: { username }, matchId } = this.props
+  tagPlayer = () => {
 
-    // do a geoquery for a 10m radius
-    const players = geo.collection(matchId)
-    const center = geo.point(this.state.myPosition.lat, this.state.myPosition.lng) // this players pos
-    const radius = 0.01
-    const field = 'position'
+    const center = new firebase.firestore.GeoPoint(this.state.myPosition.lat, this.state.myPosition.lng) // this players pos
+    
+    const query = db.collection('matches').doc(this.props.matchId).collection('players')
+      .near({ center, radius: 50})
 
-    const query = players.within(center, radius, field)
+      query.get().then((value) => {
+        // All GeoDocument returned by GeoQuery, like the GeoDocument added above
+        value.docs.forEach(player => {
+          db.collection('matches').doc(this.props.matchId).collection('players').doc(player.id)
+          .update({
+            tagged: true
+          })
+        })
+      })
 
-    // get ids of people in geoquery
-    const playersInTaggingDistance = await get(query)
-
-    // filter out tagged players
-    const notTaggedPlayers = playersInTaggingDistance.filter(player => !player.tagged)
-
-    // filter out this user
-    const aboutToBeTagged = notTaggedPlayers.filter(player => player.name !== username)
-
-    aboutToBeTagged && aboutToBeTagged.forEach((player) => {
-      db.collection(matchId).doc(player.id)
-        .update({ tagged: true })
-    })
-
-    //update ui => that youve tagged a player
-    this.putPlayersMarkersOnMap(aboutToBeTagged)
   }
 
   checkIfImTagged = () => {
-    DBtagged = db.collection(this.props.matchId).doc(this.props.user.UID)
+    DBtagged = db.collection('matches').doc(this.props.matchId).collection('players').doc(this.props.user.UID)
       .onSnapshot(doc => {
-        if (doc.data() !== undefined) {
+        if (doc.data() !== undefined || null) {
           if (doc.data().tagged) {
-            this.setState({ imTagged: true })
+            this.setState({ imTagged: true })  
           }
         }
       })
   }
 
   checkIfAllPlayersAreTagged = () => {
-    DBcheckIfAllPlayersTagged = db.collection(this.props.matchId)
+    DBcheckIfAllPlayersTagged = db.collection('matches').doc(this.props.matchId).collection('players')
       .onSnapshot(querySnapshot => {
         const players = []
         querySnapshot.forEach(function (doc) {
