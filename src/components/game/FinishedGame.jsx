@@ -21,7 +21,7 @@ export class FinishedGame extends Component {
   render() {
     return (
       <Box>
-        
+        yeet
       </Box>
     )
   }

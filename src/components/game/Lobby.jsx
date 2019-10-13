@@ -1,3 +1,4 @@
+import * as firebase from 'firebase/app'
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { Box, Form, FormField, Button } from 'grommet'
@@ -33,17 +34,18 @@ class Lobby extends Component {
         const matches = []
         snapshot.forEach(doc => {
           const players = []
-          doc.ref.collection('players').get().then((querySnap) => {
+          db.collection('matches').doc(doc.id).collection('players')
+          .get().then((querySnap) => {
             querySnap.forEach((snap) => {
               // check if user has already joined a match
               if (snap.data().id === userId) {
-                this.setState({ matchId: doc.ref.id })
+                this.setState({ matchId: doc.id })
               }
               players.push(snap.data())
             })
           })
           if (!doc.data().playing) {
-            matches.push({ matchId: doc.ref.id, admin: doc.data().admin, players })
+            matches.push({ matchId: doc.id, admin: doc.data().admin, players })
           }
         })
         this.setState({ matches })
@@ -57,11 +59,13 @@ class Lobby extends Component {
       password: this.state.password,
       waiting: true,
       playing: false,
-      initialising: false
+      initialising: false,
+      coordinates: new firebase.firestore.GeoPoint(0,0)
     })
       .then((docRef) => {
-        db.collection('matches').doc(docRef.id).collection('players')
-          .add({ id: userId, name: username, tagged: false })
+        db.collection('matches').doc(docRef.id).collection('players').doc(this.props.user.UID)
+          .set({ id: userId, name: username, tagged: false, 
+            coordinates: new firebase.firestore.GeoPoint(0,0) })
           .then(() => this.setState({ matchId: docRef.id }))
           .catch(e => console.log(`Error adding ${username} to match. ${e}`))
       })
@@ -69,8 +73,8 @@ class Lobby extends Component {
   }
 
   joinMatch = (matchId, userId, username) => {
-    db.collection('matches').doc(matchId).collection('players')
-      .add({ id: userId, name: username, tagged: false })
+    db.collection('matches').doc(matchId).collection('players').doc(this.props.user.UID)
+      .set({ id: userId, name: username, tagged: false, coordinates: new firebase.firestore.GeoPoint(0,0) })
       .then(() => this.setState({ matchId }))
       .catch(e => console.log(`Error joining match. ${e}`))
   }

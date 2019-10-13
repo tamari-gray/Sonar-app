@@ -45,11 +45,6 @@ class InGame extends Component {
     if (this.props) {
       this.initMap()
       this.getMatch() // toggle play btn
-      // db.collection(this.props.matchId).setDoc(this.props.user.UID, { // add player to db 
-      //   name: this.props.user.username,
-      //   tagged: false
-      // })
-      //   .catch((e) => alert(`Error adding player to db`, e))
       this.checkIfImTagged()
       this.checkIfAllPlayersAreTagged()
     }
@@ -67,7 +62,6 @@ class InGame extends Component {
       }).addTo(map)
         .bindPopup(`you've tagged ${player.name}`).openPopup()
       markers.push(marker)
-
     })
     let timer = 3
     const intervalId = setInterval(() => {
@@ -90,7 +84,7 @@ class InGame extends Component {
       querySnapshot.forEach(doc => {
         if (doc.data().name !== userName) {
           if (!doc.data().tagged) {
-            const pos = [doc.data().coordinates.geopoint.latitude, doc.data().coordinates.geopoint.longitude]
+            const pos = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
             const marker = L.circle(pos, { // set player marker to black 
               color: 'green',
               fillColor: 'green',
@@ -161,8 +155,6 @@ class InGame extends Component {
               }).catch(function (error) {
                 console.error("Error removing match from db: ", error);
               })
-
-            //TODO: delete match collection here
           }
           this.setState({ finished: true })
         }
@@ -262,55 +254,27 @@ class InGame extends Component {
           .update({ initialising: true, waiting: false, tagger: tagger.name })
           .catch(e => console.log(`Error initialising game. ${e}`))
 
-        db.collection('matches').doc(this.props.matchId).collection('players').doc(this.props.user.UID)
+        db.collection('matches').doc(this.props.matchId).collection('players').doc(tagger.id)
         .update({ tagger: true })
         .catch(e => console.log(`Error initialising game. ${e}`))
-
-        // db.collection(this.props.matchId).doc(tagger.id)
-        //   .update({ tagger: true })
-        //   .catch(e => console.log(`Error initialising game. ${e}`))
       })
   }
-
-  // tagPlayerGeoFirex = async () => {
-  //   const { user: { username }, matchId } = this.props
-
-  //   // do a geoquery for a 10m radius
-  //   const players = geo.collection(matchId)
-  //   const center = geo.point(this.state.myPosition.lat, this.state.myPosition.lng) // this players pos
-  //   const radius = 0.01
-  //   const field = 'position'
-
-  //   const query = players.within(center, radius, field)
-
-  //   // get ids of people in geoquery
-  //   const playersInTaggingDistance = await get(query)
-
-  //   // filter out tagged players
-  //   const notTaggedPlayers = playersInTaggingDistance.filter(player => !player.tagged)
-
-  //   // filter out this user
-  //   const aboutToBeTagged = notTaggedPlayers.filter(player => player.name !== username)
-
-  //   aboutToBeTagged && aboutToBeTagged.forEach((player) => {
-  //     db.collection(matchId).doc(player.id)
-  //       .update({ tagged: true })
-  //   })
-
-  //   //update ui => that youve tagged a player
-  //   this.putPlayersMarkersOnMap(aboutToBeTagged)
-  // }
 
   tagPlayer = () => {
 
     const center = new firebase.firestore.GeoPoint(this.state.myPosition.lat, this.state.myPosition.lng) // this players pos
     
     const query = db.collection('matches').doc(this.props.matchId).collection('players')
-      .near({ center, radius: 20})
+      .near({ center, radius: 50})
 
       query.get().then((value) => {
         // All GeoDocument returned by GeoQuery, like the GeoDocument added above
-        console.log(value.docs);
+        value.docs.forEach(player => {
+          db.collection('matches').doc(this.props.matchId).collection('players').doc(player.id)
+          .update({
+            tagged: true
+          })
+        })
       })
 
   }
@@ -318,9 +282,9 @@ class InGame extends Component {
   checkIfImTagged = () => {
     DBtagged = db.collection('matches').doc(this.props.matchId).collection('players').doc(this.props.user.UID)
       .onSnapshot(doc => {
-        if (doc.data() !== undefined) {
+        if (doc.data() !== undefined || null) {
           if (doc.data().tagged) {
-            this.setState({ imTagged: true })
+            this.setState({ imTagged: true })  
           }
         }
       })
