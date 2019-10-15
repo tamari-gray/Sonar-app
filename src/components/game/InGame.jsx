@@ -161,7 +161,7 @@ class InGame extends Component {
         if (doc.data().playing) {
           clearInterval(initTimerId);
           this.setState({ playing: true });
-          this.startTimer(600);
+          this.startTimer(10);
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
         }
@@ -179,8 +179,10 @@ class InGame extends Component {
         }
 
         if (doc.data().finished) {
-          this.deleteMatch();
           clearInterval(gameTimerId);
+          if (this.state.admin) {
+            this.deleteMatch();
+          }
           this.setState({ finished: true });
         }
       });
@@ -208,12 +210,16 @@ class InGame extends Component {
       minutes = minutes < 10 ? "0" + minutes : minutes;
       seconds = seconds < 10 ? "0" + seconds : seconds;
 
-      let clock = minutes + ":" + seconds;
-      this.setState({ gameTimer: clock });
-      if (--timer < 0) {
+      if (timer === 0) {
+        clearInterval(gameTimerId);
         if (this.state.admin) {
           this.getSurvivors();
         }
+      }
+
+      let clock = minutes + ":" + seconds;
+      this.setState({ gameTimer: clock });
+      if (--timer < 0) {
       }
     }, 1000);
   };
@@ -227,11 +233,11 @@ class InGame extends Component {
         const players = [];
 
         querySnap.forEach(doc => {
-          players.push(doc.data());
+          players.push(doc.data().name);
         });
 
         const filterOutTagger = players.filter(
-          player => player.name !== this.state.tagger
+          player => player !== this.state.tagger
         );
 
         const survivors = filterOutTagger.filter(player => !player.tagged);
@@ -244,6 +250,16 @@ class InGame extends Component {
             })
             .then(() => {
               console.log("saved match data");
+              geoDb
+                .collection("matches")
+                .doc(this.props.matchId)
+                .update({
+                  finished: true
+                })
+                .then(() => {
+                  console.log("game finished");
+                })
+                .catch(e => console.log("error finishing game", e));
             });
         }
       });
