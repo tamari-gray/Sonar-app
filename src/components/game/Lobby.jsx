@@ -135,7 +135,7 @@ class Lobby extends Component {
             border={{ color: "brand", size: "large" }}
             width="large"
           >
-            <div style={{ margin: "0 2em 0 2em " }}>
+            <div style={{ margin: "0 1.5em 0 1.5em " }}>
               <Text size="medium">
                 Its hide and go seek!.. <br />
                 Choose your class and use your abilities to survive from the
