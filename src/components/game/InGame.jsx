@@ -17,6 +17,10 @@ let DBgetMatch = null;
 let DBtagged = null;
 let DBcheckIfAllPlayersTagged = null;
 
+//timers
+let initTimerId = null;
+let gameTimerId = null;
+
 class InGame extends Component {
   state = {
     boundary: {
@@ -38,7 +42,7 @@ class InGame extends Component {
     imTagger: false,
     allPlayersTagged: false,
     finished: false,
-    gameTimer: 10
+    gameTimer: false
   };
 
   componentDidMount() {
@@ -118,7 +122,9 @@ class InGame extends Component {
           timer = timer - 1;
           if (timer === 0) {
             players.forEach(player => {
-              map.removeLayer(player);
+              if (map !== null) {
+                map.removeLayer(player);
+              }
             });
             clearInterval(intervalId);
           }
@@ -134,35 +140,37 @@ class InGame extends Component {
       .collection("matches")
       .doc(this.props.matchId)
       .onSnapshot(doc => {
+        // check if user is admin
         if (doc.data().admin.id === this.props.user.UID) {
-          // check if user is admin
           this.setState({ admin: doc.data().admin });
         }
 
+        // check if game is in waiting phase
         if (doc.data().waiting === true) {
-          // check if game is in waiting phase
           this.setState({ waiting: true });
         } else if (doc.data().waiting === false) {
           this.setState({ waiting: false });
         }
 
+        // check if game is initialising
         if (doc.data().initialising) {
-          // check if game is initialising
           this.setState({ initialising: true });
           this.startInitialiseTimer();
         } else if (doc.data().initialising === false) {
           this.setState({ initialising: false });
         }
 
+        // check if game is in play
         if (doc.data().playing) {
-          // check if game is in play
+          clearInterval(initTimerId);
           this.setState({ playing: true });
+          this.startTimer(600);
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
         }
 
+        // check who le tagger is
         if (doc.data().tagger) {
-          // check who le tagger is
           if (doc.data().tagger === this.props.user.username) {
             this.setState({ imTagger: true, tagger: doc.data().tagger });
           } else {
@@ -172,6 +180,7 @@ class InGame extends Component {
 
         if (doc.data().finished) {
           if (this.state.admin) {
+            clearInterval(gameTimerId);
             db.collection("matches")
               .doc(this.props.matchId)
               .delete()
@@ -187,9 +196,31 @@ class InGame extends Component {
       });
   };
 
+  startTimer = duration => {
+    var timer = duration,
+      minutes,
+      seconds;
+    gameTimerId = setInterval(() => {
+      minutes = parseInt(timer / 60, 10);
+      seconds = parseInt(timer % 60, 10);
+
+      minutes = minutes < 10 ? "0" + minutes : minutes;
+      seconds = seconds < 10 ? "0" + seconds : seconds;
+
+      let clock = minutes + ":" + seconds;
+      this.setState({ gameTimer: clock });
+      if (--timer < 0) {
+        db.collection("matches")
+          .doc(this.props.matchId)
+          .update({ playing: false, finished: true })
+          .catch(e => console.log(`Error initialising game. ${e}`));
+      }
+    }, 1000);
+  };
+
   startInitialiseTimer = () => {
     let timer = 31;
-    const id = setInterval(() => {
+    initTimerId = setInterval(() => {
       timer = timer - 1;
       this.setState({
         initialisingTimer: timer
@@ -202,7 +233,6 @@ class InGame extends Component {
           .doc(this.props.matchId) // move to playing phase in firebase
           .update({ initialising: false, playing: true })
           .catch(e => console.log(`Error initialising game. ${e}`));
-        clearInterval(id);
       }
     }, 1000);
   };
@@ -460,7 +490,7 @@ class InGame extends Component {
             <p>{`please wait till the game has finished.. loser`}</p>
           )}
 
-          {gameTimer && (
+          {playing && (
             <div>
               <p style={{ color: "red" }}>{gameTimer}</p>
             </div>

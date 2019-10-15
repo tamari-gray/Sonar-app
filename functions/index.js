@@ -4,7 +4,7 @@ exports.playMatch = functions.firestore
   .document("matches/{matchId}")
   .onUpdate((change, context) => {
     // Retrieve the current and previous value
-    const data = change.after.data();
+    const data = change.after.data().d;
     const previousData = change.before.data();
 
     console.log(data);
