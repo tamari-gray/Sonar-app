@@ -2,8 +2,6 @@
 
 lets play spotlight!
 
-but this time with more strategy :0
-
-browser based app
+This is a browser based app.
 
 
