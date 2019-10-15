@@ -10,6 +10,7 @@ import Lobby from "./game/Lobby";
 import InGame from "./game/InGame";
 import routes from "../routes";
 import FinishedGame from "./game/FinishedGame";
+import ClassSelect from "./game/ClassSelect";
 
 const App: React.FC = () => {
   return (
@@ -32,6 +33,13 @@ const App: React.FC = () => {
             exact
             render={routeProps => (
               <InGame matchId={routeProps.match.params.matchId} />
+            )}
+          />
+          <Route
+            path={routes.CLASS_SELECT}
+            exact
+            render={routeProps => (
+              <ClassSelect matchId={routeProps.match.params.matchId} />
             )}
           />
           <Route
