@@ -337,7 +337,8 @@ class InGame extends Component {
         .update({
           // update users location in DB
           coordinates: pos
-        });
+        })
+        .catch(e => console.log("error adding user to db", e));
     });
 
     map.on("locationerror", e => {

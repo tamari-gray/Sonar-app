@@ -4,6 +4,7 @@ const routes = {
   PROFILE: "/profile",
   LOBBY: "/lobby",
   GAME: "/game/:matchId",
+  CLASS_SELECT: "/game/:matchId/class-select",
   FINISHED_GAME: "/game/:matchId/finished",
   HOME: "/"
 };
