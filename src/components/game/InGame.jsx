@@ -161,7 +161,7 @@ class InGame extends Component {
         if (doc.data().playing) {
           clearInterval(initTimerId);
           this.setState({ playing: true });
-          this.startTimer(10);
+          this.startTimer(600);
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
         }
