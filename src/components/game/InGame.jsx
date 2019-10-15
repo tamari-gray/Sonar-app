@@ -4,10 +4,9 @@ import { connect } from "react-redux";
 import { Box, Button } from "grommet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { db } from "../../firebase";
+import { db, geoDb } from "../../firebase";
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
-import { get } from "geofirex";
 
 let map = null;
 let thisUser = null;
@@ -53,7 +52,6 @@ class InGame extends Component {
       this.checkIfAllPlayersAreTagged();
     }
   }
-
   putPlayersMarkersOnMap = players => {
     const markers = [];
     players.forEach(player => {
@@ -84,12 +82,12 @@ class InGame extends Component {
       }
     }, 1000);
   };
-
   showAllPlayersLatestLocation = () => {
     // get all players from db ONCE
     let players = [];
     const userName = this.props.user.username;
-    db.collection("matches")
+    geoDb
+      .collection("matches")
       .doc(this.props.matchId)
       .collection("players")
       .get()
@@ -134,9 +132,8 @@ class InGame extends Component {
         }, 1000);
       });
   };
-
   getMatch = () => {
-    DBgetMatch = db
+    DBgetMatch = geoDb
       .collection("matches")
       .doc(this.props.matchId)
       .onSnapshot(doc => {
@@ -173,29 +170,33 @@ class InGame extends Component {
         if (doc.data().tagger) {
           if (doc.data().tagger === this.props.user.username) {
             this.setState({ imTagger: true, tagger: doc.data().tagger });
+            if (thisUser !== null) {
+              thisUser.setRadius(20);
+            }
           } else {
             this.setState({ tagger: doc.data().tagger });
           }
         }
 
         if (doc.data().finished) {
-          if (this.state.admin) {
-            clearInterval(gameTimerId);
-            db.collection("matches")
-              .doc(this.props.matchId)
-              .delete()
-              .then(function() {
-                console.log("game successfully deleted!");
-              })
-              .catch(function(error) {
-                console.error("Error removing match from db: ", error);
-              });
-          }
+          this.deleteMatch();
+          clearInterval(gameTimerId);
           this.setState({ finished: true });
         }
       });
   };
-
+  deleteMatch = () => {
+    geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .delete()
+      .then(function() {
+        console.log("game successfully deleted!");
+      })
+      .catch(function(error) {
+        console.error("Error removing match from db: ", error);
+      });
+  };
   startTimer = duration => {
     var timer = duration,
       minutes,
@@ -210,14 +211,43 @@ class InGame extends Component {
       let clock = minutes + ":" + seconds;
       this.setState({ gameTimer: clock });
       if (--timer < 0) {
-        db.collection("matches")
-          .doc(this.props.matchId)
-          .update({ playing: false, finished: true })
-          .catch(e => console.log(`Error initialising game. ${e}`));
+        if (this.state.admin) {
+          this.getSurvivors();
+        }
       }
     }, 1000);
   };
+  getSurvivors = () => {
+    geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .collection("players")
+      .get()
+      .then(querySnap => {
+        const players = [];
 
+        querySnap.forEach(doc => {
+          players.push(doc.data());
+        });
+
+        const filterOutTagger = players.filter(
+          player => player.name !== this.state.tagger
+        );
+
+        const survivors = filterOutTagger.filter(player => !player.tagged);
+
+        if (survivors) {
+          db.collection("finishedMatches")
+            .doc(this.props.matchId)
+            .set({
+              winners: survivors
+            })
+            .then(() => {
+              console.log("saved match data");
+            });
+        }
+      });
+  };
   startInitialiseTimer = () => {
     let timer = 31;
     initTimerId = setInterval(() => {
@@ -229,14 +259,14 @@ class InGame extends Component {
         this.setState({
           initialisingTimer: 0
         });
-        db.collection("matches")
+        geoDb
+          .collection("matches")
           .doc(this.props.matchId) // move to playing phase in firebase
           .update({ initialising: false, playing: true })
           .catch(e => console.log(`Error initialising game. ${e}`));
       }
     }, 1000);
   };
-
   initMap = () => {
     map = L.map("map", {
       zoom: 22,
@@ -274,7 +304,7 @@ class InGame extends Component {
           color: "black",
           fillColor: "#f03",
           fillOpacity: 0.5,
-          radius: 20
+          radius: 5
         })
           .addTo(map)
           .bindPopup(this.props.user.username)
@@ -283,7 +313,8 @@ class InGame extends Component {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng);
       }
-      db.collection("matches")
+      geoDb
+        .collection("matches")
         .doc(matchId)
         .collection("players")
         .doc(this.props.user.UID)
@@ -306,11 +337,11 @@ class InGame extends Component {
 
     map.locate({ maxZoom: 22, watch: true, enableHighAccuracy: true });
   };
-
   initialiseGame = () => {
     let players = [];
     // choose tagger
-    db.collection("matches")
+    geoDb
+      .collection("matches")
       .doc(this.props.matchId)
       .collection("players")
       .get()
@@ -321,12 +352,14 @@ class InGame extends Component {
       })
       .then(() => {
         const tagger = players[Math.floor(Math.random() * players.length)];
-        db.collection("matches")
+        geoDb
+          .collection("matches")
           .doc(this.props.matchId)
           .update({ initialising: true, waiting: false, tagger: tagger.name })
           .catch(e => console.log(`Error initialising game. ${e}`));
 
-        db.collection("matches")
+        geoDb
+          .collection("matches")
           .doc(this.props.matchId)
           .collection("players")
           .doc(tagger.id)
@@ -334,14 +367,13 @@ class InGame extends Component {
           .catch(e => console.log(`Error initialising game. ${e}`));
       });
   };
-
   tagPlayer = () => {
     const center = new firebase.firestore.GeoPoint(
       this.state.myPosition.lat,
       this.state.myPosition.lng
     ); // this players pos
 
-    const query = db
+    const query = geoDb
       .collection("matches")
       .doc(this.props.matchId)
       .collection("players")
@@ -350,7 +382,8 @@ class InGame extends Component {
     query.get().then(value => {
       // All GeoDocument returned by GeoQuery, like the GeoDocument added above
       value.docs.forEach(player => {
-        db.collection("matches")
+        geoDb
+          .collection("matches")
           .doc(this.props.matchId)
           .collection("players")
           .doc(player.id)
@@ -360,9 +393,8 @@ class InGame extends Component {
       });
     });
   };
-
   checkIfImTagged = () => {
-    DBtagged = db
+    DBtagged = geoDb
       .collection("matches")
       .doc(this.props.matchId)
       .collection("players")
@@ -375,9 +407,8 @@ class InGame extends Component {
         }
       });
   };
-
   checkIfAllPlayersAreTagged = () => {
-    DBcheckIfAllPlayersTagged = db
+    DBcheckIfAllPlayersTagged = geoDb
       .collection("matches")
       .doc(this.props.matchId)
       .collection("players")
@@ -395,13 +426,24 @@ class InGame extends Component {
         );
 
         if (allPlayersTaggged) {
-          db.collection("matches")
+          db.collection("finishedMatches")
+            .doc(this.props.matchId)
+            .set({
+              winners: [this.state.tagger]
+            })
+            .then(() => {
+              console.log("saved match data");
+            });
+
+          geoDb
+            .collection("matches")
             .doc(this.props.matchId)
             .update({
               initialising: false,
               waiting: false,
               playing: false,
-              finished: true
+              finished: true,
+              taggerWon: true
             })
             .catch(function(error) {
               console.log("Error ending game", error);
@@ -409,7 +451,6 @@ class InGame extends Component {
         }
       });
   };
-
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
     DBcheckIfAllPlayersTagged();
@@ -420,6 +461,8 @@ class InGame extends Component {
     DBgetMatch = null;
     DBtagged = null;
     DBcheckIfAllPlayersTagged = null;
+    initTimerId = null;
+    gameTimerId = null;
   }
 
   render() {
@@ -471,10 +514,8 @@ class InGame extends Component {
               primary
               style={{ padding: "0.8em" }}
               onClick={this.showAllPlayersLatestLocation}
-            >
-              {" "}
-              send sonar{" "}
-            </Button>
+              label="send sonar"
+            />
           )}
           {sonarTimer !== 0 && "sonar active for " + sonarTimer + " seconds"}
           {imTagger && playing && (
@@ -482,9 +523,8 @@ class InGame extends Component {
               primary
               style={{ padding: "0.8em" }}
               onClick={this.tagPlayer}
-            >
-              Tag
-            </Button>
+              label="tag"
+            />
           )}
           {imTagged && (
             <p>{`please wait till the game has finished.. loser`}</p>
