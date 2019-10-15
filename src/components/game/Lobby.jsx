@@ -1,7 +1,7 @@
 import * as firebase from "firebase/app";
 import React, { Component } from "react";
 import { connect } from "react-redux";
-import { Box, Form, FormField, Button } from "grommet";
+import { Box, Form, FormField, Button, Text } from "grommet";
 import { Redirect } from "react-router-dom";
 import { geoDb } from "../../firebase";
 
@@ -129,17 +129,19 @@ class Lobby extends Component {
         >
           <h1>How to play</h1>
           <Box
-            round="small"
+            pad="medium"
+            round="large"
+            elevation="medium"
             border={{ color: "brand", size: "large" }}
-            style={{ paddingLeft: "1em", paddingRight: "1em" }}
+            width="large"
           >
-            <div>
-              <p>
+            <div style={{ margin: "0 2em 0 2em " }}>
+              <Text size="medium">
                 Its hide and go seek!.. <br />
                 Choose your class and use your abilities to survive from the
                 tagger for 10 minutes to win! <br />
                 tagger is chosen randomly every game
-              </p>
+              </Text>
             </div>
           </Box>
           <h1>Create a game</h1>
