@@ -1,13 +1,7 @@
 import * as firebase from "firebase/app";
 import "firebase/auth";
 import "firebase/firestore";
-// import * as geofirex from 'geofirex'
-import {
-  GeoCollectionReference,
-  GeoFirestore,
-  GeoQuery,
-  GeoQuerySnapshot
-} from "geofirestore";
+import { GeoFirestore } from "geofirestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCUu8zzfotKZNvfQcXRQm2LMX7xwMRCyRg",
@@ -22,5 +16,4 @@ firebase.initializeApp(firebaseConfig);
 
 export const auth = firebase.auth();
 export const db = firebase.firestore();
-// export const geo = geofirex.init(firebase)
 export const geoDb = new GeoFirestore(db);
