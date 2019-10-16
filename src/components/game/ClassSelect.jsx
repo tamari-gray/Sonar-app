@@ -44,20 +44,20 @@ class ClassSelect extends Component {
   };
 
   selectClass = selectedClass => {
-    let userClass = {};
+    let player = {};
     if (selectedClass === "Defuser") {
-      userClass = {
-        class: selectedClass,
+      player = {
+        playerQuirk: selectedClass,
         abilityUse: 5
       };
     } else if (selectedClass === "Joker") {
-      userClass = {
-        class: selectedClass,
+      player = {
+        playerQuirk: selectedClass,
         abilityUse: 2
       };
     } else if (selectedClass === "Snitch") {
-      userClass = {
-        class: selectedClass,
+      player = {
+        playerQuirk: selectedClass,
         abilityUse: 3
       };
     }
@@ -66,7 +66,7 @@ class ClassSelect extends Component {
       .doc(this.props.matchId)
       .collection("players")
       .doc(this.props.user.UID)
-      .update(userClass)
+      .update(player)
       .then(() => {
         this.setState({ redirect: true });
         console.log("updated user class");
