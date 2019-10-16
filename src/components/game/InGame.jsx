@@ -526,7 +526,7 @@ class InGame extends Component {
               {`you may hunt players in ${initialisingTimer} seconds`}
             </p>
           )}
-          {!imTagged && sonarTimer === 0 && playing && (
+          {imTagger && sonarTimer === 0 && playing && (
             <Button
               primary
               style={{ padding: "0.8em" }}
