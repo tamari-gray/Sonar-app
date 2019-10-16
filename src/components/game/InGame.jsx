@@ -1,7 +1,7 @@
 import * as firebase from "firebase/app";
 import React, { Component } from "react";
 import { connect } from "react-redux";
-import { Box, Button } from "grommet";
+import { Box, Button, Layer, Heading, Text } from "grommet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { db, geoDb } from "../../firebase";
@@ -49,7 +49,7 @@ class InGame extends Component {
     if (this.props) {
       this.initMap();
       this.getMatch(); // toggle play btn
-      this.checkIfImTagged();
+      this.watchUserInfo();
       this.checkIfAllPlayersAreTagged();
     }
   }
@@ -84,7 +84,8 @@ class InGame extends Component {
     }, 1000);
   };
   sendSonar = () => {
-    db.collection("matches")
+    geoDb
+      .collection("matches")
       .doc(this.props.matchId)
       .update({
         sonarPing: true
@@ -92,7 +93,8 @@ class InGame extends Component {
       .then(() => {
         this.setState({ sonarWaiting: true });
         setTimeout(() => {
-          db.collection("matches")
+          geoDb
+            .collection("matches")
             .doc(this.props.matchId)
             .update({
               sonarPing: false
@@ -200,6 +202,38 @@ class InGame extends Component {
           }
         }
 
+        if (doc.data().sonarPing === true) {
+          if (this.state.class === "Defuser") {
+            // check if user has used all their defusers
+            if (this.state.defuses > 0) {
+              // show cancel sonar ui for 3 seconds
+              this.setState({
+                defuseSonarChance: true
+              });
+              let timer = 4;
+              const timerId = setInterval(() => {
+                timer = timer - 1;
+                if (timer >= 0) {
+                  this.setState({
+                    defuseSonarTimer: timer
+                  });
+                }
+                if (timer === 0) {
+                  this.setState({
+                    defuseSonarTimer: 0,
+                    defuseSonarChance: false
+                  });
+                  clearInterval(timerId);
+                }
+              }, 1000);
+            }
+          }
+        }
+
+        if (doc.data().sonarPing === false) {
+          this.setState({ defuseSonarChance: false });
+        }
+
         if (doc.data().finished) {
           clearInterval(gameTimerId);
           if (this.state.admin) {
@@ -287,7 +321,7 @@ class InGame extends Component {
       });
   };
   startInitialiseTimer = () => {
-    let timer = 31;
+    let timer = 6;
     initTimerId = setInterval(() => {
       timer = timer - 1;
       this.setState({
@@ -402,7 +436,7 @@ class InGame extends Component {
           .doc(this.props.matchId)
           .collection("players")
           .doc(tagger.id)
-          .update({ tagger: true })
+          .update({ class: "tagger" })
           .catch(e => console.log(`Error initialising game. ${e}`));
       });
   };
@@ -432,7 +466,7 @@ class InGame extends Component {
       });
     });
   };
-  checkIfImTagged = () => {
+  watchUserInfo = () => {
     DBtagged = geoDb
       .collection("matches")
       .doc(this.props.matchId)
@@ -440,8 +474,22 @@ class InGame extends Component {
       .doc(this.props.user.UID)
       .onSnapshot(doc => {
         if (doc.data() !== undefined || null) {
+          //check if tagged
           if (doc.data().tagged) {
             this.setState({ imTagged: true });
+          }
+          // get class into local state
+          if (doc.data().class === "Defuser") {
+            this.setState({
+              class: doc.data().class,
+              defuses: 5
+            });
+
+            if (doc.data().defuses) {
+              this.setState({
+                defuses: doc.data().defuses
+              });
+            }
           }
         }
       });
@@ -490,6 +538,26 @@ class InGame extends Component {
         }
       });
   };
+  closeSonarDefuse = () => {
+    this.setState({
+      defuseSonarChance: false
+    });
+  };
+  defuseSonar = () => {
+    geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .collection("players")
+      .doc(this.props.user.UID)
+      .update({
+        cancelSonar: true,
+        defuses: this.state.defuses - 1
+      })
+      .then(() => {
+        console.log("defused sonar");
+      })
+      .catch(e => console.log("error defusing sonar", e));
+  };
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
     DBcheckIfAllPlayersTagged();
@@ -518,8 +586,11 @@ class InGame extends Component {
       playing,
       sonarTimer,
       initialisingTimer,
-      sonarWaiting
+      sonarWaiting,
+      defuseSonarTimer,
+      defuseSonarChance
     } = this.state;
+    console.log(defuseSonarTimer, defuseSonarChance);
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
     } else if (finished) {
@@ -576,6 +647,49 @@ class InGame extends Component {
               <p style={{ color: "red" }}>{gameTimer}</p>
             </div>
           )}
+
+          {defuseSonarChance && (
+            <Layer
+              position="center"
+              modal
+              onClickOutside={this.closeSonarDefuse}
+              onEsc={this.closeSonarDefuse}
+            >
+              <Box pad="medium" gap="small" width="medium">
+                <Heading level={3} margin="none">
+                  Tagger has sent a sonar!
+                </Heading>
+                <Text>chance will expire in {defuseSonarTimer} secs</Text>
+                <Box
+                  as="footer"
+                  gap="small"
+                  direction="row"
+                  align="center"
+                  justify="end"
+                  pad={{ top: "medium", bottom: "small" }}
+                >
+                  <Button
+                    label={
+                      <Text color="white">
+                        <strong>Defuse</strong>
+                      </Text>
+                    }
+                    onClick={this.closeSonarDefuse}
+                    primary
+                    color="status-critical"
+                  />
+                  <Button
+                    label="Ignore"
+                    onClick={this.defuseSonar}
+                    color="dark-3"
+                  />
+                </Box>
+              </Box>
+            </Layer>
+          )}
+
+          {defuseSonarChance && "defuse sonar"}
+          {this.state.defuseSonarChance && "defuse sonar"}
         </Box>
       );
     }
