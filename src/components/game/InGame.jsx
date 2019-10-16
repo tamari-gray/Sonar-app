@@ -41,7 +41,8 @@ class InGame extends Component {
     imTagger: false,
     allPlayersTagged: false,
     finished: false,
-    gameTimer: false
+    gameTimer: false,
+    sonarWaiting: false
   };
 
   componentDidMount() {
@@ -82,7 +83,28 @@ class InGame extends Component {
       }
     }, 1000);
   };
-  showAllPlayersLatestLocation = () => {
+  sendSonar = () => {
+    db.collection("matches")
+      .doc(this.props.matchId)
+      .update({
+        sonarPing: true
+      })
+      .then(() => {
+        this.setState({ sonarWaiting: true });
+        setTimeout(() => {
+          db.collection("matches")
+            .doc(this.props.matchId)
+            .update({
+              sonarPing: false
+            })
+            .then(() => {
+              this.setState({ sonarWaiting: false });
+              this.showPlayersLocations();
+            });
+        }, 10000);
+      });
+  };
+  showPlayersLocations = () => {
     // get all players from db ONCE
     let players = [];
     const userName = this.props.user.username;
@@ -94,7 +116,7 @@ class InGame extends Component {
       .then(querySnapshot => {
         querySnapshot.forEach(doc => {
           if (doc.data().name !== userName) {
-            if (!doc.data().tagged) {
+            if (!doc.data().tagged && !doc.data().cancelSonar) {
               const pos = [
                 doc.data().coordinates.latitude,
                 doc.data().coordinates.longitude
@@ -495,7 +517,8 @@ class InGame extends Component {
       geolocationError,
       playing,
       sonarTimer,
-      initialisingTimer
+      initialisingTimer,
+      sonarWaiting
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -526,15 +549,16 @@ class InGame extends Component {
               {`you may hunt players in ${initialisingTimer} seconds`}
             </p>
           )}
-          {!imTagged && sonarTimer === 0 && playing && (
+          {imTagger && sonarTimer === 0 && playing && !sonarWaiting && (
             <Button
               primary
               style={{ padding: "0.8em" }}
-              onClick={this.showAllPlayersLatestLocation}
+              onClick={this.sendSonar}
               label="send sonar"
             />
           )}
           {sonarTimer !== 0 && "sonar active for " + sonarTimer + " seconds"}
+          {sonarWaiting && "finding players... "}
           {imTagger && playing && (
             <Button
               primary
