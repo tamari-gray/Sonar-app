@@ -44,18 +44,34 @@ class ClassSelect extends Component {
   };
 
   selectClass = selectedClass => {
+    let userClass = {};
+    if (selectedClass === "Defuser") {
+      userClass = {
+        class: selectedClass,
+        abilityUse: 5
+      };
+    } else if (selectedClass === "Joker") {
+      userClass = {
+        class: selectedClass,
+        abilityUse: 2
+      };
+    } else if (selectedClass === "Snitch") {
+      userClass = {
+        class: selectedClass,
+        abilityUse: 3
+      };
+    }
     geoDb
       .collection("matches")
       .doc(this.props.matchId)
       .collection("players")
       .doc(this.props.user.UID)
-      .update({
-        class: selectedClass
-      })
+      .update(userClass)
       .then(() => {
         this.setState({ redirect: true });
+        console.log("updated user class");
       })
-      .catch(e => console.log("error selecting class", e));
+      .catch(error => `error updating user class, ${error}`);
   };
 
   render() {
