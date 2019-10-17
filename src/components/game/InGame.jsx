@@ -394,7 +394,8 @@ class InGame extends Component {
           .doc(this.props.matchId)
           .collection("players")
           .doc(tagger.id)
-          .update({ playerQuirk: "Tagger", abilityUsage: players.length * 2 })
+          .update({ playerQuirk: "Tagger", abilityUse: players.length * 2 })
+          .then(() => console.log(` set tagger. ${tagger.name}`))
           .catch(e => console.log(`Error initialising game. ${e}`));
       });
   };
