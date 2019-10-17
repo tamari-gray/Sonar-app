@@ -193,6 +193,7 @@ class InGame extends Component {
           }
         }
 
+        // if game is finished
         if (doc.data().finished) {
           clearInterval(gameTimerId);
           if (this.state.admin) {
@@ -200,7 +201,40 @@ class InGame extends Component {
           }
           this.setState({ finished: true });
         }
+
+        // watch for players that get snitched on
+        if (doc.data().snitchedOn) {
+          if (this.state.playerQuirk === "Tagger") {
+            this.showSnitchedPlayers(doc.data().snitchedOn);
+          }
+        }
       });
+  };
+  showSnitchedPlayers = snitchedOn => {
+    // make markers with popup to remove them
+    const snitchedPlayers = [];
+    snitchedOn.forEach(player => {
+      const pos = [player.coordinates.latitude, player.coordinates.longitude];
+      const closeButton = this.createLeafletButton(`remove marker`);
+      const popupContent = `${player.name} was snitched on! <br> ${closeButton}  `;
+      const marker = L.circle(pos, {
+        // set player marker to black
+        color: "green",
+        fillColor: "green",
+        fillOpacity: 0.5,
+        radius: 5
+      })
+        .addTo(map)
+        .bindPopup(popupContent)
+        .openPopup();
+      snitchedPlayers.push(marker);
+    });
+  };
+  createLeafletButton = label => {
+    var btn = L.DomUtil.create("button", "", L.DomUtil.create("div"));
+    btn.setAttribute("type", "button");
+    btn.innerHTML = label;
+    return btn;
   };
   deleteMatch = () => {
     geoDb
@@ -559,16 +593,31 @@ class InGame extends Component {
       .doc(this.props.user.UID)
       .get()
       .then(doc => {
-        const newAbilityUsage = doc.data().abilityUse - 1;
+        let update = {};
+        let newAbilityUsage = doc.data().abilityUse;
+
+        if (newAbilityUsage) {
+          newAbilityUsage = newAbilityUsage - 1;
+        } else {
+          newAbilityUsage = 0;
+        }
+
+        if (doc.data().playerQuirk === "Snitch") {
+          update = {
+            abilityUse: newAbilityUsage
+          };
+        } else if (doc.data().playerQuirk === "Joker") {
+          update = {
+            abilityUse: newAbilityUsage,
+            fakePos: this.state.fakePos
+          };
+        }
         geoDb
           .collection("matches")
           .doc(this.props.matchId)
           .collection("players")
           .doc(this.props.user.UID)
-          .update({
-            abilityUse: newAbilityUsage,
-            fakePos: this.state.fakePos
-          })
+          .update(update)
           .then(() => {
             console.log("used ability");
           })
@@ -611,7 +660,7 @@ class InGame extends Component {
 
   useSnitchAbility = () => {
     let timer = 10;
-    const abilityTimer = setTimeout(() => {
+    const abilityTimer = setInterval(() => {
       timer = timer - 1;
       if (timer === 0) {
         this.DbUseAbility();
@@ -640,6 +689,12 @@ class InGame extends Component {
     gameTimerId = null;
     jokerFakePosition = null;
   }
+
+  testy = () => {
+    setTimeout(() => {
+      this.setState({ abilityInUse: false });
+    }, 2000);
+  };
 
   render() {
     const {
@@ -790,9 +845,7 @@ class InGame extends Component {
               </Box>
             ) : (
               <Box>
-                {setTimeout(() => {
-                  this.setState({ abilityInUse: false });
-                }, 2000)}
+                {this.testy()}
                 <p>no one to snitch on within 10m</p>
               </Box>
             ))}
