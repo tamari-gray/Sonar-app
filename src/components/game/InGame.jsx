@@ -47,6 +47,7 @@ class InGame extends Component {
     finished: false,
     gameTimer: false,
     abilityUsage: 0,
+    abilityTimer: 0,
     playerQuirk: false,
     abilityInUse: false
   };
@@ -102,10 +103,16 @@ class InGame extends Component {
         querySnapshot.forEach(doc => {
           if (doc.data().name !== userName) {
             if (!doc.data().tagged) {
-              const pos = [
-                doc.data().coordinates.latitude,
-                doc.data().coordinates.longitude
-              ];
+              let pos = [];
+              if (doc.data().fakePos) {
+                pos = [doc.data().fakePos[0], doc.data().fakePos[1]];
+              } else {
+                pos = [
+                  doc.data().coordinates.latitude,
+                  doc.data().coordinates.longitude
+                ];
+              }
+
               const marker = L.circle(pos, {
                 // set player marker to black
                 color: "green",
@@ -387,7 +394,7 @@ class InGame extends Component {
           .doc(this.props.matchId)
           .collection("players")
           .doc(tagger.id)
-          .update({ tagger: true })
+          .update({ playerQuirk: "Tagger", abilityUsage: players.length * 2 })
           .catch(e => console.log(`Error initialising game. ${e}`));
       });
   };
@@ -429,24 +436,15 @@ class InGame extends Component {
             this.setState({ imTagged: true });
           }
           if (doc.data().playerQuirk) {
-            console.log("db", doc.data());
+            console.log("db quirk", doc.data());
             let playerQuirk = doc.data().playerQuirk;
             let abilityUsage = doc.data().abilityUse;
-            console.log(playerQuirk, abilityUsage);
 
             this.setState({
               playerQuirk,
               abilityUsage
             });
           }
-          // if (doc.data() === "Defuser") {
-          // } else if (doc.data() === "Joker") {
-          //   this.setState({
-          //     class: doc.data().class,
-          //     abilityUse: doc.data().abilityUse
-          //   });
-          // } else if (doc.data() === "Snitch") {
-          // }
         }
       });
   };
@@ -500,8 +498,6 @@ class InGame extends Component {
       abilityInUse: true
     });
 
-    console.log("hi");
-
     jokerFakePosition = new L.marker(
       [this.state.boundary.lat, this.state.boundary.lng],
       {
@@ -518,7 +514,6 @@ class InGame extends Component {
 
     jokerFakePosition.on("dragend", e => {
       const fakePos = e.target.getLatLng();
-      console.log(fakePos);
       jokerFakePosition.setLatLng(fakePos).update();
       this.setState({
         fakePos: [fakePos.lat, fakePos.lng]
@@ -608,6 +603,11 @@ class InGame extends Component {
       return (
         <Box align="center">
           <Box id="map" style={{ height: "480px", width: "100%" }}></Box>
+          {playing && (
+            <div>
+              <p style={{ color: "red" }}>{gameTimer}</p>
+            </div>
+          )}
           {// if waiting and admin
           admin && waiting && (
             <div>
@@ -650,12 +650,6 @@ class InGame extends Component {
             <p>{`please wait till the game has finished.. loser`}</p>
           )}
 
-          {playing && (
-            <div>
-              <p style={{ color: "red" }}>{gameTimer}</p>
-            </div>
-          )}
-
           {playing &&
             playerQuirk === "Joker" &&
             !abilityInUse &&
@@ -667,7 +661,7 @@ class InGame extends Component {
                 label="Use fake position"
               />
             )}
-          {playing && abilityInUse && (
+          {playing && abilityInUse && abilityTimer === 0 && (
             <Box direction="row">
               <Button
                 primary
@@ -678,7 +672,10 @@ class InGame extends Component {
               <Button
                 secondary
                 style={{ padding: "0.8em" }}
-                onClick={this.cancelJokerAbility}
+                onClick={() => {
+                  this.setState({ abilityInUse: false });
+                  map.removeLayer(jokerFakePosition);
+                }}
                 label="cancel"
               />
             </Box>
@@ -688,6 +685,8 @@ class InGame extends Component {
             playerQuirk === "Joker" &&
             abilityInUse &&
             abilityTimer > 0 && <p>fake position active for {abilityTimer}</p>}
+
+          {playing && abilityUsage && <p>{abilityUsage} ability uses left</p>}
         </Box>
       );
     }
