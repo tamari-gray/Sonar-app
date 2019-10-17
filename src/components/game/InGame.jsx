@@ -789,7 +789,12 @@ class InGame extends Component {
                 />
               </Box>
             ) : (
-              "no one within 10m to snitch on"
+              <Box>
+                {setTimeout(() => {
+                  this.setState({ abilityInUse: false });
+                }, 2000)}
+                <p>no one to snitch on within 10m</p>
+              </Box>
             ))}
 
           {playing &&
