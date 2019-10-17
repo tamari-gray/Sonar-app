@@ -1,4 +1,4 @@
-import { auth, geoDb } from "../firebase";
+import { auth, db } from "../firebase";
 
 export const GET_USER = "GET_USER";
 export const GET_USER_INFO = "GET_USER_INFO";
@@ -6,7 +6,7 @@ export const REMOVE_USER = "REMOVE_USER";
 
 export function getUser(userId) {
   return dispatch => {
-    const docRef = geoDb.collection("users").doc(userId);
+    const docRef = db.collection("users").doc(userId);
 
     docRef
       .get()
@@ -34,8 +34,7 @@ export function createAccount(data) {
       .createUserWithEmailAndPassword(email, password)
       .then(({ user }) => {
         if (user !== null) {
-          geoDb
-            .collection("users")
+          db.collection("users")
             .doc(user.uid)
             .set({ username })
             .then(function() {
