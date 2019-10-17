@@ -448,7 +448,9 @@ class InGame extends Component {
             });
 
             if (playerQuirk === "Snitch") {
-              thisUser.setRadius(10);
+              if (thisUser !== null) {
+                thisUser.setRadius(10);
+              }
             }
           }
         }
@@ -594,10 +596,17 @@ class InGame extends Component {
   };
 
   useSnitchAbility = () => {
+    let timer = 10;
     const abilityTimer = setTimeout(() => {
-      this.DbUseAbility();
-      this.setState({ abilityInUse: false });
-    }, 10000);
+      timer = timer - 1;
+      if (timer === 0) {
+        this.DbUseAbility();
+        this.setState({ abilityInUse: false });
+      }
+      this.setState({
+        abilityTimer: timer
+      });
+    }, 1000);
   };
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
@@ -759,6 +768,17 @@ class InGame extends Component {
                   onClick={this.useSnitchAbility}
                   label="confirm"
                 />
+              </Box>
+            )}
+
+          {playing &&
+            playerQuirk === "Snitch" &&
+            abilityInUse &&
+            abilityTimer > 0 && (
+              <Box direction="column">
+                {snitchingOn.map(player => {
+                  return `${player.name},`;
+                }) + `position will be revealed in ${abilityTimer} secs`}
               </Box>
             )}
 
