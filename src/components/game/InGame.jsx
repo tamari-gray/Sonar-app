@@ -686,7 +686,9 @@ class InGame extends Component {
             abilityInUse &&
             abilityTimer > 0 && <p>fake position active for {abilityTimer}</p>}
 
-          {playing && abilityUsage && <p>{abilityUsage} ability uses left</p>}
+          {playing && abilityUsage >= 0 && (
+            <p>{abilityUsage} ability uses left</p>
+          )}
         </Box>
       );
     }
