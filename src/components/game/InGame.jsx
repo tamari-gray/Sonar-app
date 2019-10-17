@@ -49,7 +49,8 @@ class InGame extends Component {
     abilityUsage: 0,
     abilityTimer: 0,
     playerQuirk: false,
-    abilityInUse: false
+    abilityInUse: false,
+    snitchingOn: []
   };
 
   componentDidMount() {
@@ -437,7 +438,7 @@ class InGame extends Component {
             this.setState({ imTagged: true });
           }
           if (doc.data().playerQuirk) {
-            console.log("db quirk", doc.data());
+            console.log("db quirk", doc.data().playerQuirk);
             let playerQuirk = doc.data().playerQuirk;
             let abilityUsage = doc.data().abilityUse;
 
@@ -445,6 +446,10 @@ class InGame extends Component {
               playerQuirk,
               abilityUsage
             });
+
+            if (playerQuirk === "Snitch") {
+              thisUser.setRadius(10);
+            }
           }
         }
       });
@@ -541,6 +546,10 @@ class InGame extends Component {
       }
     }, 1000);
 
+    this.DbUseAbility();
+  };
+
+  DbUseAbility = () => {
     geoDb
       .collection("matches")
       .doc(this.props.matchId)
@@ -559,10 +568,36 @@ class InGame extends Component {
             fakePos: this.state.fakePos
           })
           .then(() => {
-            console.log("used joker ability");
+            console.log("used ability");
           })
-          .catch(e => console.log(`error using joker ability ${e}`));
-      });
+          .catch(e => console.log(`error using ability ${e}`));
+      })
+      .catch(e => console.log(`error using ability ${e}`));
+  };
+
+  initSnitchAbility = () => {
+    const center = new firebase.firestore.GeoPoint(
+      this.state.myPosition.lat,
+      this.state.myPosition.lng
+    ); // this players pos
+
+    const query = geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .collection("players")
+      .near({ center, radius: 10 });
+
+    query.get().then(value => {
+      // All GeoDocument returned by GeoQuery, like the GeoDocument added above
+      this.setState({ snitchingOn: value.docs, abilityInUse: true });
+    });
+  };
+
+  useSnitchAbility = () => {
+    const abilityTimer = setTimeout(() => {
+      this.DbUseAbility();
+      this.setState({ abilityInUse: false });
+    }, 10000);
   };
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
@@ -596,7 +631,8 @@ class InGame extends Component {
       playerQuirk,
       abilityUsage,
       abilityInUse,
-      abilityTimer
+      abilityTimer,
+      snitchingOn
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -664,32 +700,67 @@ class InGame extends Component {
                 label="Use fake position"
               />
             )}
-          {playing && abilityInUse && abilityTimer === 0 && (
-            <Box direction="row">
-              <Button
-                primary
-                style={{ padding: "0.8em" }}
-                onClick={this.setFakePosition}
-                label="Place marker"
-              />
-              <Button
-                secondary
-                style={{ padding: "0.8em" }}
-                onClick={() => {
-                  this.setState({ abilityInUse: false });
-                  if (jokerFakePosition !== null) {
-                    map.removeLayer(jokerFakePosition);
-                  }
-                }}
-                label="cancel"
-              />
-            </Box>
-          )}
+          {playing &&
+            playerQuirk === "Joker" &&
+            abilityInUse &&
+            abilityTimer === 0 && (
+              <Box direction="row">
+                <Button
+                  primary
+                  style={{ padding: "0.8em" }}
+                  onClick={this.setFakePosition}
+                  label="Place marker"
+                />
+                <Button
+                  secondary
+                  style={{ padding: "0.8em" }}
+                  onClick={() => {
+                    this.setState({ abilityInUse: false });
+                    if (jokerFakePosition !== null) {
+                      map.removeLayer(jokerFakePosition);
+                    }
+                  }}
+                  label="cancel"
+                />
+              </Box>
+            )}
 
           {playing &&
             playerQuirk === "Joker" &&
             abilityInUse &&
             abilityTimer > 0 && <p>fake position active for {abilityTimer}</p>}
+
+          {playing &&
+            playerQuirk === "Snitch" &&
+            !abilityInUse &&
+            abilityUsage > 0 && (
+              <Button
+                primary
+                style={{ padding: "0.8em" }}
+                onClick={this.initSnitchAbility}
+                label="snitch"
+              />
+            )}
+
+          {playing &&
+            playerQuirk === "Snitch" &&
+            abilityInUse &&
+            snitchingOn &&
+            abilityTimer === 0 && (
+              <Box direction="column">
+                {"snitch on " +
+                  snitchingOn.map(player => {
+                    return `${player.name},`;
+                  }) +
+                  "?"}
+                <Button
+                  primary
+                  style={{ padding: "0.8em" }}
+                  onClick={this.useSnitchAbility}
+                  label="confirm"
+                />
+              </Box>
+            )}
 
           {playing && abilityUsage >= 0 && (
             <p>{abilityUsage} ability uses left</p>
