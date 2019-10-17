@@ -529,7 +529,9 @@ class InGame extends Component {
         abilityTimer: timer
       });
       if (timer === 0) {
-        map.removeLayer(jokerFakePosition);
+        if (jokerFakePosition !== null) {
+          map.removeLayer(jokerFakePosition);
+        }
         this.setState({
           abilityInUse: false,
           abilityTimer: 0
@@ -674,7 +676,9 @@ class InGame extends Component {
                 style={{ padding: "0.8em" }}
                 onClick={() => {
                   this.setState({ abilityInUse: false });
-                  map.removeLayer(jokerFakePosition);
+                  if (jokerFakePosition !== null) {
+                    map.removeLayer(jokerFakePosition);
+                  }
                 }}
                 label="cancel"
               />
