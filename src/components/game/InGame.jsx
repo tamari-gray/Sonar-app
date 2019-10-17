@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import { db, geoDb } from "../../firebase";
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
+// import { location } from "grommet-icons";
 
 let map = null;
 let thisUser = null;
@@ -19,6 +20,9 @@ let DBcheckIfAllPlayersTagged = null;
 //timers
 let initTimerId = null;
 let gameTimerId = null;
+
+// user abilities
+let jokerFakePosition = null;
 
 class InGame extends Component {
   state = {
@@ -41,14 +45,18 @@ class InGame extends Component {
     imTagger: false,
     allPlayersTagged: false,
     finished: false,
-    gameTimer: false
+    gameTimer: false,
+    abilityUsage: 0,
+    abilityTimer: 0,
+    playerQuirk: false,
+    abilityInUse: false
   };
 
   componentDidMount() {
     if (this.props) {
       this.initMap();
       this.getMatch(); // toggle play btn
-      this.checkIfImTagged();
+      this.watchUserInfo();
       this.checkIfAllPlayersAreTagged();
     }
   }
@@ -95,10 +103,16 @@ class InGame extends Component {
         querySnapshot.forEach(doc => {
           if (doc.data().name !== userName) {
             if (!doc.data().tagged) {
-              const pos = [
-                doc.data().coordinates.latitude,
-                doc.data().coordinates.longitude
-              ];
+              let pos = [];
+              if (doc.data().fakePos) {
+                pos = [doc.data().fakePos[0], doc.data().fakePos[1]];
+              } else {
+                pos = [
+                  doc.data().coordinates.latitude,
+                  doc.data().coordinates.longitude
+                ];
+              }
+
               const marker = L.circle(pos, {
                 // set player marker to black
                 color: "green",
@@ -265,7 +279,7 @@ class InGame extends Component {
       });
   };
   startInitialiseTimer = () => {
-    let timer = 31;
+    let timer = 5;
     initTimerId = setInterval(() => {
       timer = timer - 1;
       this.setState({
@@ -380,7 +394,7 @@ class InGame extends Component {
           .doc(this.props.matchId)
           .collection("players")
           .doc(tagger.id)
-          .update({ tagger: true })
+          .update({ playerQuirk: "Tagger", abilityUsage: players.length * 2 })
           .catch(e => console.log(`Error initialising game. ${e}`));
       });
   };
@@ -410,7 +424,7 @@ class InGame extends Component {
       });
     });
   };
-  checkIfImTagged = () => {
+  watchUserInfo = () => {
     DBtagged = geoDb
       .collection("matches")
       .doc(this.props.matchId)
@@ -420,6 +434,16 @@ class InGame extends Component {
         if (doc.data() !== undefined || null) {
           if (doc.data().tagged) {
             this.setState({ imTagged: true });
+          }
+          if (doc.data().playerQuirk) {
+            console.log("db quirk", doc.data());
+            let playerQuirk = doc.data().playerQuirk;
+            let abilityUsage = doc.data().abilityUse;
+
+            this.setState({
+              playerQuirk,
+              abilityUsage
+            });
           }
         }
       });
@@ -468,6 +492,75 @@ class InGame extends Component {
         }
       });
   };
+
+  useJokerAbility = () => {
+    this.setState({
+      abilityInUse: true
+    });
+
+    jokerFakePosition = new L.marker(
+      [this.state.boundary.lat, this.state.boundary.lng],
+      {
+        draggable: true,
+        icon: L.divIcon({
+          iconAnchor: [10, 10],
+          iconSize: [20, 20]
+        })
+      }
+    )
+      .addTo(map)
+      .bindPopup("move me!")
+      .openPopup();
+
+    jokerFakePosition.on("dragend", e => {
+      const fakePos = e.target.getLatLng();
+      jokerFakePosition.setLatLng(fakePos).update();
+      this.setState({
+        fakePos: [fakePos.lat, fakePos.lng]
+      });
+    });
+  };
+
+  setFakePosition = () => {
+    let timer = 90;
+    const timerId = setInterval(() => {
+      timer = timer - 1;
+      this.setState({
+        abilityTimer: timer
+      });
+      if (timer === 0) {
+        map.removeLayer(jokerFakePosition);
+        this.setState({
+          abilityInUse: false,
+          abilityTimer: 0
+        });
+        clearInterval(timerId);
+      }
+    }, 1000);
+
+    geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .collection("players")
+      .doc(this.props.user.UID)
+      .get()
+      .then(doc => {
+        const newAbilityUsage = doc.data().abilityUse - 1;
+        geoDb
+          .collection("matches")
+          .doc(this.props.matchId)
+          .collection("players")
+          .doc(this.props.user.UID)
+          .update({
+            abilityUse: newAbilityUsage,
+            fakePos: this.state.fakePos
+          })
+          .then(() => {
+            console.log("used joker ability");
+          })
+          .catch(e => console.log(`error using joker ability ${e}`));
+      });
+  };
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
     DBcheckIfAllPlayersTagged();
@@ -480,6 +573,7 @@ class InGame extends Component {
     DBcheckIfAllPlayersTagged = null;
     initTimerId = null;
     gameTimerId = null;
+    jokerFakePosition = null;
   }
 
   render() {
@@ -495,7 +589,11 @@ class InGame extends Component {
       geolocationError,
       playing,
       sonarTimer,
-      initialisingTimer
+      initialisingTimer,
+      playerQuirk,
+      abilityUsage,
+      abilityInUse,
+      abilityTimer
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -505,6 +603,11 @@ class InGame extends Component {
       return (
         <Box align="center">
           <Box id="map" style={{ height: "480px", width: "100%" }}></Box>
+          {playing && (
+            <div>
+              <p style={{ color: "red" }}>{gameTimer}</p>
+            </div>
+          )}
           {// if waiting and admin
           admin && waiting && (
             <div>
@@ -526,7 +629,7 @@ class InGame extends Component {
               {`you may hunt players in ${initialisingTimer} seconds`}
             </p>
           )}
-          {!imTagged && sonarTimer === 0 && playing && (
+          {imTagger && sonarTimer === 0 && playing && (
             <Button
               primary
               style={{ padding: "0.8em" }}
@@ -547,10 +650,44 @@ class InGame extends Component {
             <p>{`please wait till the game has finished.. loser`}</p>
           )}
 
-          {playing && (
-            <div>
-              <p style={{ color: "red" }}>{gameTimer}</p>
-            </div>
+          {playing &&
+            playerQuirk === "Joker" &&
+            !abilityInUse &&
+            abilityUsage > 0 && (
+              <Button
+                primary
+                style={{ padding: "0.8em" }}
+                onClick={this.useJokerAbility}
+                label="Use fake position"
+              />
+            )}
+          {playing && abilityInUse && abilityTimer === 0 && (
+            <Box direction="row">
+              <Button
+                primary
+                style={{ padding: "0.8em" }}
+                onClick={this.setFakePosition}
+                label="Place marker"
+              />
+              <Button
+                secondary
+                style={{ padding: "0.8em" }}
+                onClick={() => {
+                  this.setState({ abilityInUse: false });
+                  map.removeLayer(jokerFakePosition);
+                }}
+                label="cancel"
+              />
+            </Box>
+          )}
+
+          {playing &&
+            playerQuirk === "Joker" &&
+            abilityInUse &&
+            abilityTimer > 0 && <p>fake position active for {abilityTimer}</p>}
+
+          {playing && abilityUsage >= 0 && (
+            <p>{abilityUsage} ability uses left</p>
           )}
         </Box>
       );
