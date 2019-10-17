@@ -591,7 +591,21 @@ class InGame extends Component {
 
     query.get().then(value => {
       // All GeoDocument returned by GeoQuery, like the GeoDocument added above
-      this.setState({ snitchingOn: value.docs, abilityInUse: true });
+      const players = [];
+
+      value.docs.forEach(doc => players.push(doc.data()));
+
+      //filter out tagger
+      const filterOutTagger = players.filter(
+        player => player.playerQuirk !== "Tagger"
+      );
+
+      // filter out this user
+      const filterOutThisUser = filterOutTagger.filter(
+        player => player.id !== this.props.user.UID
+      );
+
+      this.setState({ snitchingOn: filterOutThisUser, abilityInUse: true });
     });
   };
 
@@ -759,7 +773,8 @@ class InGame extends Component {
             playerQuirk === "Snitch" &&
             abilityInUse &&
             snitchingOn &&
-            abilityTimer === 0 && (
+            abilityTimer === 0 &&
+            (snitchingOn.length !== 0 ? (
               <Box direction="column">
                 {"snitch on " +
                   snitchingOn.map(player => {
@@ -773,7 +788,9 @@ class InGame extends Component {
                   label="confirm"
                 />
               </Box>
-            )}
+            ) : (
+              "no one within 10m to snitch on"
+            ))}
 
           {playing &&
             playerQuirk === "Snitch" &&
