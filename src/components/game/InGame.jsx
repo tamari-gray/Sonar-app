@@ -602,6 +602,10 @@ class InGame extends Component {
       if (timer === 0) {
         this.DbUseAbility();
         this.setState({ abilityInUse: false });
+
+        //TODO:
+
+        // show tagger their positions
       }
       this.setState({
         abilityTimer: timer
