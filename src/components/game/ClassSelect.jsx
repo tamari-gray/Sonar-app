@@ -35,7 +35,7 @@ class ClassSelect extends Component {
       .doc(this.props.user.UID)
       .get()
       .then(doc => {
-        if (doc.data().class) {
+        if (doc.data().playerQuirk) {
           this.setState({
             redirect: true
           });
