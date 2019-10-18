@@ -23,6 +23,7 @@ let gameTimerId = null;
 
 // user abilities
 let jokerFakePosition = null;
+let snitchedOnPlayers = null;
 
 class InGame extends Component {
   state = {
@@ -219,8 +220,8 @@ class InGame extends Component {
     const snitchedPlayers = [];
     snitchedOn.forEach(player => {
       const pos = [player.position.latitude, player.position.longitude];
-      const closeButton = this.createLeafletButton(`remove marker`);
-      const popupContent = `${player.name} was snitched on! <br> ${closeButton}  `;
+      // const closeButton = this.createLeafletButton(`remove marker`);
+      const popupContent = `${player.name} was snitched on!`;
       const marker = L.circle(pos, {
         // set player marker to black
         color: "green",
@@ -232,14 +233,15 @@ class InGame extends Component {
         .bindPopup(popupContent)
         .openPopup();
       snitchedPlayers.push(marker);
+      snitchedOnPlayers = snitchedPlayers;
     });
   };
-  createLeafletButton = label => {
-    var btn = L.DomUtil.create("button", "", L.DomUtil.create("div"));
-    btn.setAttribute("type", "button");
-    btn.innerHTML = label;
-    return btn;
-  };
+  // createLeafletButton = label => {
+  //   var btn = L.DomUtil.create("button", "", L.DomUtil.create("div"));
+  //   btn.setAttribute("type", "button");
+  //   btn.innerHTML = label;
+  //   return btn;
+  // };
   deleteMatch = () => {
     geoDb
       .collection("matches")
@@ -723,6 +725,7 @@ class InGame extends Component {
     initTimerId = null;
     gameTimerId = null;
     jokerFakePosition = null;
+    snitchedOnPlayers = null;
   }
 
   testy = () => {
@@ -896,6 +899,17 @@ class InGame extends Component {
               </Box>
             )}
 
+          {playing && imTagger && snitchedOnPlayers !== null && (
+            <Button
+              primary
+              style={{ padding: "0.8em" }}
+              onClick={() => {
+                snitchedOnPlayers.forEach(player => map.removeLayer(player));
+                snitchedOnPlayers = null;
+              }}
+              label="remove snitched players"
+            />
+          )}
           {playing && abilityUsage >= 0 && (
             <p>{abilityUsage} ability uses left</p>
           )}
