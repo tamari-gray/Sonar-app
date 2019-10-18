@@ -65,9 +65,10 @@ class FinishedGame extends Component {
             style={{ paddingLeft: "1em", paddingRight: "1em" }}
           >
             <h1>Winners: </h1> <br />
-            {winners.map(winner => {
-              return <h3 key={winner}>{winner}</h3>;
-            })}
+            {winners !== undefined &&
+              winners.map(winner => {
+                return <h3 key={winner}>{winner}</h3>;
+              })}
           </Box>
         )}
         <Button as={Link} to="/profile" primary label="go home" />
