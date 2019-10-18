@@ -228,7 +228,7 @@ class InGame extends Component {
   showSnitchedPlayers = snitchedOn => {
     // make markers with popup to remove them
     const snitchedPlayers = [];
-    snitchedOn.length !== null &&
+    snitchedOn.length !== 0 &&
       snitchedOn.forEach(player => {
         const pos = [player.position.latitude, player.position.longitude];
         const popupContent = `${player.name} was snitched on!`;
