@@ -117,7 +117,7 @@ class Lobby extends Component {
     const { matches, matchId } = this.state;
 
     if (matchId) {
-      return <Redirect to={`game/${matchId}`} />;
+      return <Redirect to={`game/${matchId}/class-select`} />;
     } else {
       return (
         <Box
@@ -137,30 +137,10 @@ class Lobby extends Component {
               <p>
                 Its hide and go seek!.. <br />
                 Choose your class and use your abilities to survive from the
-                tagger for 10 minutes to win!
+                tagger for 10 minutes to win! <br />
+                tagger is chosen randomly every game
               </p>
             </div>
-            <p>
-              <span style={{ fontWeight: "bold" }}>Tagger: </span> <br /> Can
-              use a sonar to see everyones latest position. <br />
-              TAG ANYONE WITHIN 15m of you
-            </p>
-            <p>
-              {" "}
-              <span style={{ fontWeight: "bold" }}>Defuser: </span> <br /> Can
-              cancel 5 sonars per game
-            </p>
-            <p>
-              {" "}
-              <span style={{ fontWeight: "bold" }}>Snitch: </span> <br /> Can
-              give other players position away to tagger 3 times per game{" "}
-            </p>
-            <p>
-              {" "}
-              <span style={{ fontWeight: "bold" }}>Joker: </span> <br /> Can
-              give away a fake position for up to 90 seconds. can use it 2 times
-              per game{" "}
-            </p>
           </Box>
           <h1>Create a game</h1>
           <Box
