@@ -202,19 +202,23 @@ class InGame extends Component {
           this.setState({ finished: true });
         }
 
+        console.log(doc.data());
+
         // watch for players that get snitched on
-        if (doc.data().snitchedOn) {
+        if (doc.data().snitchingOn) {
+          console.log("get match", doc.data().snitchingOn);
           if (this.state.playerQuirk === "Tagger") {
-            this.showSnitchedPlayers(doc.data().snitchedOn);
+            this.showSnitchedPlayers(doc.data().snitchingOn);
           }
         }
       });
   };
   showSnitchedPlayers = snitchedOn => {
+    console.log("players have been snitched on", snitchedOn);
     // make markers with popup to remove them
     const snitchedPlayers = [];
     snitchedOn.forEach(player => {
-      const pos = [player.coordinates.latitude, player.coordinates.longitude];
+      const pos = [player.position.latitude, player.position.longitude];
       const closeButton = this.createLeafletButton(`remove marker`);
       const popupContent = `${player.name} was snitched on! <br> ${closeButton}  `;
       const marker = L.circle(pos, {
@@ -657,7 +661,10 @@ class InGame extends Component {
       const reformat = filterOutThisUser.map(player => {
         return {
           name: player.name,
-          position: [player.coordinates.latitude, player.coordinates.longitude]
+          position: {
+            latitude: player.coordinates.latitude,
+            longitude: player.coordinates.longitude
+          }
         };
       });
 
@@ -666,35 +673,35 @@ class InGame extends Component {
   };
 
   useSnitchAbility = () => {
-    let timer = 10;
+    let timer = 2;
     const abilityTimer = setInterval(() => {
       timer = timer - 1;
       if (timer === 0) {
         this.DbUseAbility();
         this.setState({ abilityInUse: false });
+        // geoDb
+        //   .collection("matches")
+        //   .doc(this.props.matchId)
+        //   .get()
+        //   .then(doc => {
+        //     let snitchingOn = [];
+        //     if (doc.data().snitchingOn) {
+        //       snitchingOn = [doc.data().snitchingOn, ...this.state.snitchingOn];
+        //     } else {
+        //       snitchingOn = [...this.state.snitchingOn];
+        //     }
+        //     return snitchingOn;
+        //   })
+        // .then(yeet => {
         geoDb
           .collection("matches")
           .doc(this.props.matchId)
-          .get()
-          .then(doc => {
-            let snitchingOn = [];
-            if (doc.data().snitchingOn) {
-              snitchingOn = [doc.data().snitchingOn, ...this.state.snitchingOn];
-            } else {
-              snitchingOn = [...this.state.snitchingOn];
-            }
-            return snitchingOn;
+          .update({
+            snitchingOn: this.state.snitchingOn
           })
-          .then(yeet => {
-            geoDb
-              .collection("matches")
-              .doc(this.props.matchId)
-              .update({
-                snitchingOn: yeet
-              })
-              .then(() => console.log(`snitching successfull`))
-              .catch(e => console.log(`error snitching, ${e}`));
-          });
+          .then(() => console.log(`snitching successfull`))
+          .catch(e => console.log(`error snitching, ${e}`));
+        // });
 
         clearInterval(abilityTimer);
       }
