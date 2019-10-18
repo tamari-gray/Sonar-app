@@ -654,7 +654,14 @@ class InGame extends Component {
         player => player.id !== this.props.user.UID
       );
 
-      this.setState({ snitchingOn: filterOutThisUser, abilityInUse: true });
+      const reformat = filterOutThisUser.map(player => {
+        return {
+          name: player.name,
+          position: [player.coordinates.latitude, player.coordinates.longitude]
+        };
+      });
+
+      this.setState({ snitchingOn: reformat, abilityInUse: true });
     });
   };
 
@@ -665,10 +672,31 @@ class InGame extends Component {
       if (timer === 0) {
         this.DbUseAbility();
         this.setState({ abilityInUse: false });
+        geoDb
+          .collection("matches")
+          .doc(this.props.matchId)
+          .get()
+          .then(doc => {
+            let snitchingOn = [];
+            if (doc.data().snitchingOn) {
+              snitchingOn = [doc.data().snitchingOn, ...this.state.snitchingOn];
+            } else {
+              snitchingOn = [...this.state.snitchingOn];
+            }
+            return snitchingOn;
+          })
+          .then(yeet => {
+            geoDb
+              .collection("matches")
+              .doc(this.props.matchId)
+              .update({
+                snitchingOn: yeet
+              })
+              .then(() => console.log(`snitching successfull`))
+              .catch(e => console.log(`error snitching, ${e}`));
+          });
 
-        //TODO:
-
-        // show tagger their positions
+        clearInterval(abilityTimer);
       }
       this.setState({
         abilityTimer: timer
@@ -833,7 +861,7 @@ class InGame extends Component {
               <Box direction="column">
                 {"snitch on " +
                   snitchingOn.map(player => {
-                    return `${player.name},`;
+                    return `${player.name} `;
                   }) +
                   "?"}
                 <Button
@@ -856,7 +884,7 @@ class InGame extends Component {
             abilityTimer > 0 && (
               <Box direction="column">
                 {snitchingOn.map(player => {
-                  return `${player.name},`;
+                  return `${player.name}'s `;
                 }) + `position will be revealed in ${abilityTimer} secs`}
               </Box>
             )}
