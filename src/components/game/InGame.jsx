@@ -23,7 +23,7 @@ let gameTimerId = null;
 
 // user abilities
 let jokerFakePosition = null;
-let snitchedOnPlayers = null;
+let snitchedOnPlayers = [];
 
 class InGame extends Component {
   state = {
@@ -228,22 +228,23 @@ class InGame extends Component {
   showSnitchedPlayers = snitchedOn => {
     // make markers with popup to remove them
     const snitchedPlayers = [];
-    snitchedOn.forEach(player => {
-      const pos = [player.position.latitude, player.position.longitude];
-      const popupContent = `${player.name} was snitched on!`;
-      const marker = L.circle(pos, {
-        // set player marker to black
-        color: "green",
-        fillColor: "green",
-        fillOpacity: 0.5,
-        radius: 5
-      })
-        .addTo(map)
-        .bindPopup(popupContent)
-        .openPopup();
-      snitchedPlayers.push(marker);
-      snitchedOnPlayers = snitchedPlayers;
-    });
+    snitchedOn.length !== null &&
+      snitchedOn.forEach(player => {
+        const pos = [player.position.latitude, player.position.longitude];
+        const popupContent = `${player.name} was snitched on!`;
+        const marker = L.circle(pos, {
+          // set player marker to black
+          color: "green",
+          fillColor: "green",
+          fillOpacity: 0.5,
+          radius: 5
+        })
+          .addTo(map)
+          .bindPopup(popupContent)
+          .openPopup();
+        snitchedPlayers.push(marker);
+        snitchedOnPlayers.push(marker);
+      });
   };
   deleteMatch = () => {
     geoDb
@@ -684,29 +685,24 @@ class InGame extends Component {
       if (timer === 0) {
         this.DbUseAbility();
         this.setState({ abilityInUse: false });
-        // geoDb
-        //   .collection("matches")
-        //   .doc(this.props.matchId)
-        //   .get()
-        //   .then(doc => {
-        //     let snitchingOn = [];
-        //     if (doc.data().snitchingOn) {
-        //       snitchingOn = [doc.data().snitchingOn, ...this.state.snitchingOn];
-        //     } else {
-        //       snitchingOn = [...this.state.snitchingOn];
-        //     }
-        //     return snitchingOn;
-        //   })
-        // .then(yeet => {
         geoDb
           .collection("matches")
           .doc(this.props.matchId)
           .update({
-            snitchingOn: this.state.snitchingOn
+            snitchingOn: false
           })
-          .then(() => console.log(`snitching successfull`))
+          .then(() => {
+            console.log(this.state);
+            geoDb
+              .collection("matches")
+              .doc(this.props.matchId)
+              .update({
+                snitchingOn: this.state.snitchingOn
+              })
+              .then(() => console.log(`snitching successfull`))
+              .catch(e => console.log(`error snitching, ${e}`));
+          })
           .catch(e => console.log(`error snitching, ${e}`));
-        // });
 
         clearInterval(abilityTimer);
       }
@@ -728,7 +724,7 @@ class InGame extends Component {
     initTimerId = null;
     gameTimerId = null;
     jokerFakePosition = null;
-    snitchedOnPlayers = null;
+    snitchedOnPlayers = [];
   }
 
   testy = () => {
@@ -903,19 +899,30 @@ class InGame extends Component {
               </Box>
             )}
 
-          {playing && imTagger && snitchedOnPlayers !== null && (
+          {playing && imTagger && snitchedOnPlayers.length !== 0 && (
             <Button
               primary
               style={{ padding: "0.8em" }}
               onClick={() => {
                 snitchedOnPlayers.forEach(player => map.removeLayer(player));
-                snitchedOnPlayers = null;
+                snitchedOnPlayers = [];
               }}
               label="remove snitched players"
             />
           )}
 
-          {playing && iGotSnitchedOn && <p>youve been snitched on!</p>}
+          {playing && iGotSnitchedOn && (
+            <Box direction="row">
+              <p>youve been snitched on!</p>
+              <Button
+                style={{ padding: "0.8em" }}
+                onClick={() => {
+                  this.setState({ iGotSnitchedOn: false });
+                }}
+                label="x"
+              />
+            </Box>
+          )}
           {playing && abilityUsage >= 0 && (
             <p>{abilityUsage} ability uses left</p>
           )}
