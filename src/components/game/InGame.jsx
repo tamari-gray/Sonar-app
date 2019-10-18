@@ -210,17 +210,26 @@ class InGame extends Component {
           console.log("get match", doc.data().snitchingOn);
           if (this.state.playerQuirk === "Tagger") {
             this.showSnitchedPlayers(doc.data().snitchingOn);
+          } else {
+            this.checkIfIGotSnitchedOn(doc.data().snitchingOn);
           }
         }
       });
   };
+  checkIfIGotSnitchedOn = snitchedOn => {
+    snitchedOn.forEach(player => {
+      if (player.name === this.props.user.username) {
+        this.setState({
+          iGotSnitchedOn: true
+        });
+      }
+    });
+  };
   showSnitchedPlayers = snitchedOn => {
-    console.log("players have been snitched on", snitchedOn);
     // make markers with popup to remove them
     const snitchedPlayers = [];
     snitchedOn.forEach(player => {
       const pos = [player.position.latitude, player.position.longitude];
-      // const closeButton = this.createLeafletButton(`remove marker`);
       const popupContent = `${player.name} was snitched on!`;
       const marker = L.circle(pos, {
         // set player marker to black
@@ -236,12 +245,6 @@ class InGame extends Component {
       snitchedOnPlayers = snitchedPlayers;
     });
   };
-  // createLeafletButton = label => {
-  //   var btn = L.DomUtil.create("button", "", L.DomUtil.create("div"));
-  //   btn.setAttribute("type", "button");
-  //   btn.innerHTML = label;
-  //   return btn;
-  // };
   deleteMatch = () => {
     geoDb
       .collection("matches")
@@ -752,7 +755,8 @@ class InGame extends Component {
       abilityUsage,
       abilityInUse,
       abilityTimer,
-      snitchingOn
+      snitchingOn,
+      iGotSnitchedOn
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -761,7 +765,7 @@ class InGame extends Component {
     } else {
       return (
         <Box align="center">
-          <Box id="map" style={{ height: "480px", width: "100%" }}></Box>
+          <Box id="map" style={{ height: "60vh", width: "100%" }}></Box>
           {playing && (
             <div>
               <p style={{ color: "red" }}>{gameTimer}</p>
@@ -910,6 +914,8 @@ class InGame extends Component {
               label="remove snitched players"
             />
           )}
+
+          {playing && iGotSnitchedOn && <p>youve been snitched on!</p>}
           {playing && abilityUsage >= 0 && (
             <p>{abilityUsage} ability uses left</p>
           )}
