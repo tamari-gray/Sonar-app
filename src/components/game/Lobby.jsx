@@ -4,12 +4,12 @@ import { connect } from "react-redux";
 import { Box, Form, FormField, Button } from "grommet";
 import { Redirect } from "react-router-dom";
 import { geoDb } from "../../firebase";
+import Rules from "./Rules";
 
 let DBGetMatches = null;
 
 class Lobby extends Component {
   state = {
-    name: "",
     password: "",
     redirect: false,
     matches: [],
@@ -48,7 +48,11 @@ class Lobby extends Component {
             });
           });
         if (!doc.data().playing) {
-          matches.push({ matchId: doc.id, admin: doc.data().admin, players });
+          matches.push({
+            matchId: doc.id,
+            admin: doc.data().admin,
+            players
+          });
         }
       });
       this.setState({ matches });
@@ -60,7 +64,6 @@ class Lobby extends Component {
       .collection("matches")
       .add({
         admin: { id: userId, name: username },
-        name: this.state.name,
         password: this.state.password,
         waiting: true,
         playing: false,
@@ -117,7 +120,7 @@ class Lobby extends Component {
     const { matches, matchId } = this.state;
 
     if (matchId) {
-      return <Redirect to={`game/${matchId}/class-select`} />;
+      return <Redirect to={`game/${matchId}`} />;
     } else {
       return (
         <Box
@@ -128,20 +131,7 @@ class Lobby extends Component {
           gap="medium"
         >
           <h1>How to play</h1>
-          <Box
-            round="small"
-            border={{ color: "brand", size: "large" }}
-            style={{ paddingLeft: "1em", paddingRight: "1em" }}
-          >
-            <div>
-              <p>
-                Its hide and go seek!.. <br />
-                Choose your class and use your abilities to survive from the
-                tagger for 10 minutes to win! <br />
-                tagger is chosen randomly every game
-              </p>
-            </div>
-          </Box>
+          <Rules />
           <h1>Create a game</h1>
           <Box
             pad="medium"
@@ -155,11 +145,6 @@ class Lobby extends Component {
               style={{ margin: "1.5em 1.5em 0 1.5em " }}
               onSubmit={this.handleSubmit}
             >
-              <FormField
-                name="name"
-                label="Match name"
-                onChange={this.handleInput}
-              />
               <FormField
                 type="password"
                 name="password"
@@ -186,9 +171,7 @@ class Lobby extends Component {
                     style={{ marginTop: "1.5em" }}
                   >
                     <h3 style={{ margin: "auto" }}>
-                      {game.name} <br />
                       {"created by " + game.admin.name} <br />
-                      {/* {game.players.length + " players joined"} */}
                     </h3>
                     <Button
                       onClick={() =>
