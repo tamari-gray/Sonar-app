@@ -352,10 +352,10 @@ class InGame extends Component {
       .fitWorld()
       .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
 
-    L.tileLayer("http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       detectRetina: true,
       attribution:
-        '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+        '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
     const boundary = L.circle(
