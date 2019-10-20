@@ -733,6 +733,12 @@ class InGame extends Component {
     }, 2000);
   };
 
+  handleCloseAlert = () => {
+    this.setState({
+      hideAlert: true
+    });
+  };
+
   render() {
     const {
       gameTimer,
