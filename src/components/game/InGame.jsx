@@ -7,7 +7,6 @@ import "leaflet/dist/leaflet.css";
 import { db, geoDb } from "../../firebase";
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
-// import { location } from "grommet-icons";
 
 let map = null;
 let thisUser = null;
@@ -15,15 +14,11 @@ let thisUser = null;
 // firebase listeners
 let DBgetMatch = null;
 let DBtagged = null;
-let DBcheckIfAllPlayersTagged = null;
+let DBwatchAllPlayers = null;
 
 //timers
 let initTimerId = null;
 let gameTimerId = null;
-
-// user abilities
-let jokerFakePosition = null;
-let snitchedOnPlayers = [];
 
 class InGame extends Component {
   state = {
@@ -49,7 +44,7 @@ class InGame extends Component {
     gameTimer: false,
     abilityUsage: 0,
     abilityTimer: 0,
-    playerQuirk: false,
+    quirk: false,
     abilityInUse: false,
     snitchingOn: []
   };
@@ -58,8 +53,8 @@ class InGame extends Component {
     if (this.props) {
       this.initMap();
       this.getMatch(); // toggle play btn
-      this.watchUserInfo();
-      this.checkIfAllPlayersAreTagged();
+      this.watchAllPlayers();
+      this.checkIfAllPlayersAreTagged(); // to end game
     }
   }
   putPlayersMarkersOnMap = players => {
@@ -177,7 +172,7 @@ class InGame extends Component {
         if (doc.data().playing) {
           clearInterval(initTimerId);
           this.setState({ playing: true });
-          this.startTimer(600);
+          // this.startTimer(600);
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
         }
@@ -204,46 +199,6 @@ class InGame extends Component {
         }
 
         console.log(doc.data());
-
-        // watch for players that get snitched on
-        if (doc.data().snitchingOn) {
-          console.log("get match", doc.data().snitchingOn);
-          if (this.state.playerQuirk === "Tagger") {
-            this.showSnitchedPlayers(doc.data().snitchingOn);
-          } else {
-            this.checkIfIGotSnitchedOn(doc.data().snitchingOn);
-          }
-        }
-      });
-  };
-  checkIfIGotSnitchedOn = snitchedOn => {
-    snitchedOn.forEach(player => {
-      if (player.name === this.props.user.username) {
-        this.setState({
-          iGotSnitchedOn: true
-        });
-      }
-    });
-  };
-  showSnitchedPlayers = snitchedOn => {
-    // make markers with popup to remove them
-    const snitchedPlayers = [];
-    snitchedOn.length !== 0 &&
-      snitchedOn.forEach(player => {
-        const pos = [player.position.latitude, player.position.longitude];
-        const popupContent = `${player.name} was snitched on!`;
-        const marker = L.circle(pos, {
-          // set player marker to black
-          color: "green",
-          fillColor: "green",
-          fillOpacity: 0.5,
-          radius: 5
-        })
-          .addTo(map)
-          .bindPopup(popupContent)
-          .openPopup();
-        snitchedPlayers.push(marker);
-        snitchedOnPlayers.push(marker);
       });
   };
   deleteMatch = () => {
@@ -413,7 +368,7 @@ class InGame extends Component {
 
     map.locate({ maxZoom: 22, watch: true, enableHighAccuracy: true });
   };
-  initialiseGame = () => {
+  chooseTagger = () => {
     let players = [];
     // choose tagger
     geoDb
@@ -439,7 +394,7 @@ class InGame extends Component {
           .doc(this.props.matchId)
           .collection("players")
           .doc(tagger.id)
-          .update({ playerQuirk: "Tagger", abilityUse: players.length * 2 })
+          .update({ quirk: "Tagger" })
           .then(() => console.log(` set tagger. ${tagger.name}`))
           .catch(e => console.log(`Error initialising game. ${e}`));
       });
@@ -470,289 +425,77 @@ class InGame extends Component {
       });
     });
   };
-  watchUserInfo = () => {
-    DBtagged = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
-      .doc(this.props.user.UID)
-      .onSnapshot(doc => {
-        if (doc.data() !== undefined || null) {
-          if (doc.data().tagged) {
-            this.setState({ imTagged: true });
-          }
-          if (doc.data().playerQuirk) {
-            console.log("db quirk", doc.data().playerQuirk);
-            let playerQuirk = doc.data().playerQuirk;
-            let abilityUsage = doc.data().abilityUse;
-
-            this.setState({
-              playerQuirk,
-              abilityUsage
-            });
-
-            if (playerQuirk === "Snitch") {
-              if (thisUser !== null) {
-                thisUser.setRadius(10);
-              }
-            }
-          }
-        }
-      });
-  };
-  checkIfAllPlayersAreTagged = () => {
-    DBcheckIfAllPlayersTagged = geoDb
+  watchAllPlayers = () => {
+    DBwatchAllPlayers = geoDb
       .collection("matches")
       .doc(this.props.matchId)
       .collection("players")
       .onSnapshot(querySnapshot => {
         const players = [];
-        querySnapshot.forEach(function(doc) {
+        querySnapshot.forEach(doc => {
           players.push(doc.data());
         });
-        const filterOutTagger = players.filter(
-          player => player.name !== this.state.tagger
-        );
 
-        const allPlayersTaggged = filterOutTagger.every(
-          player => player.tagged
-        );
-
-        if (allPlayersTaggged) {
-          db.collection("finishedMatches")
-            .doc(this.props.matchId)
-            .set({
-              winners: [this.state.tagger]
-            })
-            .then(() => {
-              console.log("saved match data");
-            });
-
-          geoDb
-            .collection("matches")
-            .doc(this.props.matchId)
-            .update({
-              initialising: false,
-              waiting: false,
-              playing: false,
-              finished: true,
-              taggerWon: true
-            })
-            .catch(function(error) {
-              console.log("Error ending game", error);
-            });
-        }
+        this.checkIfAllPlayersAreTagged(players);
       });
   };
+  checkIfAllPlayersAreTagged = players => {
+    const allPlayersTaggged = players.every(player => player.tagged);
 
-  useJokerAbility = () => {
-    this.setState({
-      abilityInUse: true
-    });
-
-    jokerFakePosition = new L.marker(
-      [this.state.boundary.lat, this.state.boundary.lng],
-      {
-        draggable: true,
-        icon: L.divIcon({
-          iconAnchor: [10, 10],
-          iconSize: [20, 20]
+    if (allPlayersTaggged) {
+      db.collection("finishedMatches")
+        .doc(this.props.matchId)
+        .set({
+          winners: [this.state.tagger]
         })
-      }
-    )
-      .addTo(map)
-      .bindPopup("move me!")
-      .openPopup();
-
-    jokerFakePosition.on("dragend", e => {
-      const fakePos = e.target.getLatLng();
-      jokerFakePosition.setLatLng(fakePos).update();
-      this.setState({
-        fakePos: [fakePos.lat, fakePos.lng]
-      });
-    });
-  };
-
-  setFakePosition = () => {
-    let timer = 90;
-    const timerId = setInterval(() => {
-      timer = timer - 1;
-      this.setState({
-        abilityTimer: timer
-      });
-      if (timer === 0) {
-        if (jokerFakePosition !== null) {
-          map.removeLayer(jokerFakePosition);
-        }
-        this.setState({
-          abilityInUse: false,
-          abilityTimer: 0
+        .then(() => {
+          console.log("saved match data");
         });
-        clearInterval(timerId);
-      }
-    }, 1000);
 
-    this.DbUseAbility();
+      geoDb
+        .collection("matches")
+        .doc(this.props.matchId)
+        .update({
+          initialising: false,
+          waiting: false,
+          playing: false,
+          finished: true,
+          taggerWon: true
+        })
+        .then(() => console.log("game finished"))
+        .catch(error => {
+          console.log("Error ending game", error);
+        });
+    }
   };
 
-  DbUseAbility = () => {
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
-      .doc(this.props.user.UID)
-      .get()
-      .then(doc => {
-        let update = {};
-        let newAbilityUsage = doc.data().abilityUse;
-
-        if (newAbilityUsage) {
-          newAbilityUsage = newAbilityUsage - 1;
-        } else {
-          newAbilityUsage = 0;
-        }
-
-        if (doc.data().playerQuirk === "Snitch") {
-          update = {
-            abilityUse: newAbilityUsage
-          };
-        } else if (doc.data().playerQuirk === "Joker") {
-          update = {
-            abilityUse: newAbilityUsage,
-            fakePos: this.state.fakePos
-          };
-        }
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId)
-          .collection("players")
-          .doc(this.props.user.UID)
-          .update(update)
-          .then(() => {
-            console.log("used ability");
-          })
-          .catch(e => console.log(`error using ability ${e}`));
-      })
-      .catch(e => console.log(`error using ability ${e}`));
-  };
-
-  initSnitchAbility = () => {
-    const center = new firebase.firestore.GeoPoint(
-      this.state.myPosition.lat,
-      this.state.myPosition.lng
-    ); // this players pos
-
-    const query = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
-      .near({ center, radius: 10 });
-
-    query.get().then(value => {
-      // All GeoDocument returned by GeoQuery, like the GeoDocument added above
-      const players = [];
-
-      value.docs.forEach(doc => players.push(doc.data()));
-
-      //filter out tagger
-      const filterOutTagger = players.filter(
-        player => player.playerQuirk !== "Tagger"
-      );
-
-      // filter out this user
-      const filterOutThisUser = filterOutTagger.filter(
-        player => player.id !== this.props.user.UID
-      );
-
-      const reformat = filterOutThisUser.map(player => {
-        return {
-          name: player.name,
-          position: {
-            latitude: player.coordinates.latitude,
-            longitude: player.coordinates.longitude
-          }
-        };
-      });
-
-      this.setState({ snitchingOn: reformat, abilityInUse: true });
-    });
-  };
-
-  useSnitchAbility = () => {
-    let timer = 2;
-    const abilityTimer = setInterval(() => {
-      timer = timer - 1;
-      if (timer === 0) {
-        this.DbUseAbility();
-        this.setState({ abilityInUse: false });
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId)
-          .update({
-            snitchingOn: false
-          })
-          .then(() => {
-            console.log(this.state);
-            geoDb
-              .collection("matches")
-              .doc(this.props.matchId)
-              .update({
-                snitchingOn: this.state.snitchingOn
-              })
-              .then(() => console.log(`snitching successfull`))
-              .catch(e => console.log(`error snitching, ${e}`));
-          })
-          .catch(e => console.log(`error snitching, ${e}`));
-
-        clearInterval(abilityTimer);
-      }
-      this.setState({
-        abilityTimer: timer
-      });
-    }, 1000);
-  };
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
-    DBcheckIfAllPlayersTagged();
+    DBwatchAllPlayers();
     DBgetMatch();
     DBtagged();
     map = null;
     thisUser = null;
     DBgetMatch = null;
     DBtagged = null;
-    DBcheckIfAllPlayersTagged = null;
+    DBwatchAllPlayers = null;
     initTimerId = null;
     gameTimerId = null;
-    jokerFakePosition = null;
-    snitchedOnPlayers = [];
   }
-
-  testy = () => {
-    setTimeout(() => {
-      this.setState({ abilityInUse: false });
-    }, 2000);
-  };
 
   render() {
     const {
       gameTimer,
       finished,
-      imTagged,
-      imTagger,
       tagger,
+      imTagger,
       waiting,
       initialising,
       admin,
       geolocationError,
       playing,
       sonarTimer,
-      initialisingTimer,
-      playerQuirk,
-      abilityUsage,
-      abilityInUse,
-      abilityTimer,
-      snitchingOn,
-      iGotSnitchedOn
+      initialisingTimer
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -771,11 +514,12 @@ class InGame extends Component {
           admin && waiting && (
             <div>
               <p>press play when all players have joined game.</p>
-              <Button onClick={this.initialiseGame} label="Play!" primary />
+              <Button onClick={this.chooseTagger} label="Play!" primary />
             </div>
           )}
           {// if waiting and not admin
           !admin && waiting && <p>waiting for more players to join...</p>}
+
           {initialising && !imTagger && (
             <div>
               <h2>{`${tagger} is in!`}</h2>
@@ -788,7 +532,7 @@ class InGame extends Component {
               {`you may hunt players in ${initialisingTimer} seconds`}
             </p>
           )}
-          {imTagger && sonarTimer === 0 && playing && (
+          {!imTagger && playing && (
             <Button
               primary
               style={{ padding: "0.8em" }}
@@ -804,127 +548,6 @@ class InGame extends Component {
               onClick={this.tagPlayer}
               label="tag"
             />
-          )}
-          {imTagged && (
-            <p>{`please wait till the game has finished.. loser`}</p>
-          )}
-
-          {playing &&
-            playerQuirk === "Joker" &&
-            !abilityInUse &&
-            abilityUsage > 0 && (
-              <Button
-                primary
-                style={{ padding: "0.8em" }}
-                onClick={this.useJokerAbility}
-                label="Use fake position"
-              />
-            )}
-          {playing &&
-            playerQuirk === "Joker" &&
-            abilityInUse &&
-            abilityTimer === 0 && (
-              <Box direction="row">
-                <Button
-                  primary
-                  style={{ padding: "0.8em" }}
-                  onClick={this.setFakePosition}
-                  label="Place marker"
-                />
-                <Button
-                  secondary
-                  style={{ padding: "0.8em" }}
-                  onClick={() => {
-                    this.setState({ abilityInUse: false });
-                    if (jokerFakePosition !== null) {
-                      map.removeLayer(jokerFakePosition);
-                    }
-                  }}
-                  label="cancel"
-                />
-              </Box>
-            )}
-
-          {playing &&
-            playerQuirk === "Joker" &&
-            abilityInUse &&
-            abilityTimer > 0 && <p>fake position active for {abilityTimer}</p>}
-
-          {playing &&
-            playerQuirk === "Snitch" &&
-            !abilityInUse &&
-            abilityUsage > 0 && (
-              <Button
-                primary
-                style={{ padding: "0.8em" }}
-                onClick={this.initSnitchAbility}
-                label="snitch"
-              />
-            )}
-
-          {playing &&
-            playerQuirk === "Snitch" &&
-            abilityInUse &&
-            snitchingOn &&
-            abilityTimer === 0 &&
-            (snitchingOn.length !== 0 ? (
-              <Box direction="column">
-                {"snitch on " +
-                  snitchingOn.map(player => {
-                    return `${player.name} `;
-                  }) +
-                  "?"}
-                <Button
-                  primary
-                  style={{ padding: "0.8em" }}
-                  onClick={this.useSnitchAbility}
-                  label="confirm"
-                />
-              </Box>
-            ) : (
-              <Box>
-                {this.testy()}
-                <p>no one to snitch on within 10m</p>
-              </Box>
-            ))}
-
-          {playing &&
-            playerQuirk === "Snitch" &&
-            abilityInUse &&
-            abilityTimer > 0 && (
-              <Box direction="column">
-                {snitchingOn.map(player => {
-                  return `${player.name}'s `;
-                }) + `position will be revealed in ${abilityTimer} secs`}
-              </Box>
-            )}
-
-          {playing && imTagger && snitchedOnPlayers.length !== 0 && (
-            <Button
-              primary
-              style={{ padding: "0.8em" }}
-              onClick={() => {
-                snitchedOnPlayers.forEach(player => map.removeLayer(player));
-                snitchedOnPlayers = [];
-              }}
-              label="remove snitched players"
-            />
-          )}
-
-          {playing && iGotSnitchedOn && (
-            <Box direction="row">
-              <p>youve been snitched on!</p>
-              <Button
-                style={{ padding: "0.8em" }}
-                onClick={() => {
-                  this.setState({ iGotSnitchedOn: false });
-                }}
-                label="x"
-              />
-            </Box>
-          )}
-          {playing && abilityUsage >= 0 && (
-            <p>{abilityUsage} ability uses left</p>
           )}
         </Box>
       );
