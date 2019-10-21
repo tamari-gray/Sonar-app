@@ -10,8 +10,11 @@ import { Redirect } from "react-router-dom";
 
 let map = null;
 let thisUser = null;
+
+// markers
 let taggers = [];
 let taggedPlayersMarkers = [];
+let sonarActivePlayers = [];
 
 // firebase listeners
 let DBgetMatch = null;
@@ -114,7 +117,7 @@ class InGame extends Component {
             radius: 2.5
           })
             .addTo(map)
-            .bindPopup(doc.data().name)
+            .bindPopup("Tagger")
             .openPopup();
           newTaggers.push(marker);
         });
@@ -404,13 +407,25 @@ class InGame extends Component {
       .doc(this.props.matchId)
       .collection("players")
       .onSnapshot(querySnapshot => {
+        querySnapshot.docChanges().forEach(change => {
+          if (change.type === "added") {
+            console.log("added", change.doc.data());
+          }
+          if (change.type === "modified") {
+            console.log("updated", change.doc.data());
+            this.checkForSonars(change.doc.data());
+          }
+          if (change.type === "removed") {
+            console.log("removed", change.doc.data());
+          }
+        });
         const players = [];
         querySnapshot.forEach(doc => {
           players.push(doc.data());
 
           // if doc.chang === update => check for playerTag
           //watch: check when someone is tagged
-          this.checkForPlayerTag(players);
+          // this.checkForPlayerTag(players);
         });
 
         //work out remaining players
@@ -430,14 +445,14 @@ class InGame extends Component {
           }
         });
 
-        // watch: check for sonar use
-        this.checkForSonars(players);
+        // // watch: check for sonar use
+        // this.checkForSonars(players);
 
-        //watch: check for winner
-        this.checkForWinner(players);
+        // //watch: check for winner
+        // this.checkForWinner(players);
 
-        //watch: check if all players tagged
-        this.checkIfAllPlayersAreTagged(players);
+        // //watch: check if all players tagged
+        // this.checkIfAllPlayersAreTagged(players);
       });
   };
   checkForPlayerTag = players => {
@@ -483,7 +498,7 @@ class InGame extends Component {
         });
     }
   };
-  checkForSonars = players => {
+  checkForSonarsOG = players => {
     let sonarActivePlayers = [];
 
     if (this.state.imTagger) {
@@ -502,13 +517,44 @@ class InGame extends Component {
             .openPopup();
           sonarActivePlayers.push({ id: player.id, marker: marker });
         } else if (player.sonar === false) {
+          console.log("false");
           const oldSonar = sonarActivePlayers.find(p => p.id === player.id);
           if (oldSonar) {
             map.remove(oldSonar.marker);
-            sonarActivePlayers = sonarActivePlayers.filter(p => p !== oldSonar);
+            sonarActivePlayers = sonarActivePlayers.filter(
+              p => p.id !== oldSonar.id
+            );
           }
         }
       });
+    }
+  };
+  checkForSonars = player => {
+    if (this.state.imTagger) {
+      if (player.sonar === true) {
+        // add marker && add to sonarActivePlayers array ***************
+        const pos = [player.coordinates.latitude, player.coordinates.longitude];
+        console.log("player");
+        const marker = L.circle(pos, {
+          color: "green",
+          fillColor: "green",
+          fillOpacity: 0.5,
+          radius: 2.5
+        })
+          .addTo(map)
+          .bindPopup(`${player.name} used their sonar`)
+          .openPopup();
+        sonarActivePlayers.push({ id: player.id, marker: marker });
+      } else if (player.sonar === false) {
+        const oldSonar = sonarActivePlayers.filter(p => p.id === player.id);
+        const oldMarker = oldSonar[0];
+        if (oldMarker) {
+          map.removeLayer(oldMarker.marker);
+          sonarActivePlayers = sonarActivePlayers.filter(
+            p => p.id !== oldMarker.id
+          );
+        }
+      }
     }
   };
   checkIfAllPlayersAreTagged = players => {
