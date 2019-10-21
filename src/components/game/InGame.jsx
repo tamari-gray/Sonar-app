@@ -53,7 +53,6 @@ class InGame extends Component {
     if (this.props) {
       this.initMap();
       this.getMatch(); // toggle play btn
-      this.watchAllPlayers();
     }
   }
   putPlayersMarkersOnMap = players => {
@@ -180,7 +179,7 @@ class InGame extends Component {
         if (doc.data().playing) {
           clearInterval(initTimerId);
           this.setState({ playing: true });
-          // this.startTimer(600);
+          this.watchAllPlayers();
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
         }
@@ -211,11 +210,11 @@ class InGame extends Component {
       .collection("matches")
       .doc(this.props.matchId)
       .delete()
-      .then(function() {
+      .then(() => {
         console.log("game successfully deleted!");
       })
-      .catch(function(error) {
-        console.error("Error removing match from db: ", error);
+      .catch(e => {
+        console.error("Error removing match from db: ", e);
       });
   };
   startTimer = duration => {
@@ -241,47 +240,6 @@ class InGame extends Component {
       if (--timer < 0) {
       }
     }, 1000);
-  };
-  getSurvivors = () => {
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
-      .get()
-      .then(querySnap => {
-        const players = [];
-
-        querySnap.forEach(doc => {
-          players.push(doc.data().name);
-        });
-
-        const filterOutTagger = players.filter(
-          player => player !== this.state.tagger
-        );
-
-        const survivors = filterOutTagger.filter(player => !player.tagged);
-
-        if (survivors) {
-          db.collection("finishedMatches")
-            .doc(this.props.matchId)
-            .set({
-              winners: survivors
-            })
-            .then(() => {
-              console.log("saved match data");
-              geoDb
-                .collection("matches")
-                .doc(this.props.matchId)
-                .update({
-                  finished: true
-                })
-                .then(() => {
-                  console.log("game finished");
-                })
-                .catch(e => console.log("error finishing game", e));
-            });
-        }
-      });
   };
   startInitialiseTimer = () => {
     let timer = 5;
@@ -414,7 +372,7 @@ class InGame extends Component {
       .collection("matches")
       .doc(this.props.matchId)
       .collection("players")
-      .near({ center, radius: 20 });
+      .near({ center, radius: 5 });
 
     query.get().then(value => {
       // All GeoDocument returned by GeoQuery, like the GeoDocument added above
@@ -425,7 +383,7 @@ class InGame extends Component {
           .collection("players")
           .doc(player.id)
           .update({
-            tagged: true
+            tagger: true
           });
       });
     });
@@ -452,8 +410,28 @@ class InGame extends Component {
         // watch: check for sonar use
         this.checkForSonars(players);
 
+        //watch: check for winner
+        this.checkForWinner(players);
+
+        //watch: check if all players tagged
         this.checkIfAllPlayersAreTagged(players);
       });
+  };
+  checkForWinner = players => {
+    const notTagged = players.filter(p => !p.tagged);
+    if (notTagged.length === 1) {
+      const winner = notTagged[0];
+      console.log("winner:", winner);
+      db.collection("finishedMatches")
+        .doc(this.props.matchId)
+        .set({
+          winner
+        })
+        .then(() => console.log(`set winner ${winner.name}`))
+        .catch(error => {
+          console.log("Error setting winner", error);
+        });
+    }
   };
   checkForSonars = players => {
     let sonarActivePlayers = [];
@@ -487,15 +465,6 @@ class InGame extends Component {
     const allPlayersTaggged = players.every(player => player.tagger);
 
     if (allPlayersTaggged) {
-      db.collection("finishedMatches")
-        .doc(this.props.matchId)
-        .set({
-          winners: [this.state.tagger]
-        })
-        .then(() => {
-          console.log("saved match data");
-        });
-
       geoDb
         .collection("matches")
         .doc(this.props.matchId)
@@ -503,8 +472,7 @@ class InGame extends Component {
           initialising: false,
           waiting: false,
           playing: false,
-          finished: true,
-          taggerWon: true
+          finished: true
         })
         .then(() => console.log("game finished"))
         .catch(error => {
@@ -514,8 +482,8 @@ class InGame extends Component {
   };
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
-    DBwatchAllPlayers();
-    DBgetMatch();
+    DBwatchAllPlayers && DBwatchAllPlayers();
+    DBgetMatch && DBgetMatch();
 
     map = null;
     thisUser = null;
