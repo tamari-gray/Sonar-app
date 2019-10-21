@@ -18,23 +18,27 @@ class FinishedGame extends Component {
       .doc(this.props.matchId)
       .get()
       .then(doc => {
-        if (doc.data().winner) {
-          this.setState({
-            winner: doc.data().winner
-          });
+        if (doc.exists) {
+          if (doc.data().winner) {
+            this.setState({
+              winner: doc.data().winner
+            });
 
-          // increment winners wins
-          if (doc.data().winner.id === this.props.user.UID) {
-            this.updateWinTotal();
+            // increment winners wins
+            if (doc.data().winner.id === this.props.user.UID) {
+              this.updateWinTotal();
+            }
+          } else if (doc.data().draw) {
+            this.setState({
+              draw: doc.data().draw
+            });
+
+            const Iwon = doc
+              .data()
+              .draw.find(p => p.id === this.props.user.UID);
+
+            if (Iwon) this.updateWinTotal();
           }
-        } else if (doc.data().draw) {
-          this.setState({
-            draw: doc.data().draw
-          });
-
-          const Iwon = doc.data().draw.find(p => p.id === this.props.user.UID);
-
-          if (Iwon) this.updateWinTotal();
         }
       });
   };
