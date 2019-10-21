@@ -605,15 +605,24 @@ class InGame extends Component {
     geoDb
       .collection("matches")
       .doc(this.props.matchId)
-      .update({
-        initialising: false,
-        waiting: false,
-        playing: false,
-        finished: true
-      })
-      .then(() => console.log("game finished"))
-      .catch(error => {
-        console.log("Error ending game", error);
+      .get()
+      .then(doc => {
+        console.log("ending game");
+        if (doc.exists) {
+          geoDb
+            .collection("matches")
+            .doc(this.props.matchId)
+            .update({
+              initialising: false,
+              waiting: false,
+              playing: false,
+              finished: true
+            })
+            .then(() => console.log("game finished"))
+            .catch(error => {
+              console.log("Error ending game", error);
+            });
+        }
       });
   };
   quitGame = () => {
