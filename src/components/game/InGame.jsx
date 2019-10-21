@@ -55,11 +55,40 @@ class InGame extends Component {
     remainingPlayers: []
   };
   componentDidMount() {
+    window.addEventListener("beforeunload", this.handlePlayerQuit);
     if (this.props) {
       this.initMap();
       this.getMatch(); // toggle play btn
     }
   }
+  handlePlayerQuit = () => {
+    geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .collection("players")
+      .doc(this.props.user.UID)
+      .del()
+      .then(() => {
+        this.setState({ quit: true });
+        console.log("succesfully left game");
+        geoDb
+          .collection("matches")
+          .doc(this.props.matchId)
+          .update({
+            quitter: this.props.user.username
+          })
+          .then(() => {
+            console.log(
+              `updated game that ${this.props.user.username} has quit`
+            );
+          })
+          .catch(e =>
+            console.log(
+              `error updating game that ${this.props.user.username} has quit`
+            )
+          );
+      });
+  };
   putPlayersMarkersOnMap = players => {
     const markers = [];
     players.forEach(player => {
@@ -219,6 +248,12 @@ class InGame extends Component {
               this.deleteMatch();
             }
             this.setState({ quit: true });
+          }
+
+          if (doc.data().quitter) {
+            this.setState({
+              quitter: doc.data().quitter
+            });
           }
 
           console.log("match data", doc.data());
@@ -649,6 +684,8 @@ class InGame extends Component {
     DBwatchTaggedPlayers = null;
     initTimerId = null;
     gameTimerId = null;
+
+    window.removeEventListener("beforeunload", this.handlePlayerQuit);
   }
 
   render() {
@@ -666,7 +703,8 @@ class InGame extends Component {
       initialisingTimer,
       remainingPlayers,
       quit,
-      showPlayBtn
+      showPlayBtn,
+      quitter
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -735,6 +773,7 @@ class InGame extends Component {
           {imTagger && playing && remainingPlayers.length > 0 && (
             <p> {remainingPlayers.length} players left! </p>
           )}
+          {quitter && <p>{quitter} has quit!</p>}
         </Box>
       );
     }
