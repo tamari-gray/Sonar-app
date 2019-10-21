@@ -59,7 +59,7 @@ class FinishedGame extends Component {
           .update({
             wins: playerWins + 1
           })
-          .then(function() {
+          .then(() => {
             console.log("updated user stats");
           })
           .catch(function(error) {

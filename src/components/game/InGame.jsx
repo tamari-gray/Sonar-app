@@ -500,7 +500,6 @@ class InGame extends Component {
 
         // show play btn if more then 1 player in game
         if (players.length > 1) {
-          console.log("greater", players.lenngth);
           this.setState({
             showPlayBtn: true
           });
