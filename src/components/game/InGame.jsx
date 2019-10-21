@@ -407,6 +407,10 @@ class InGame extends Component {
         const players = [];
         querySnapshot.forEach(doc => {
           players.push(doc.data());
+
+          // if doc.chang === update => check for playerTag
+          //watch: check when someone is tagged
+          this.checkForPlayerTag(players);
         });
 
         //work out remaining players
@@ -416,9 +420,6 @@ class InGame extends Component {
         });
 
         console.log("remaining", remainingPlayers);
-
-        //watch: check when someone is tagged
-        this.checkForPlayerTag(players);
 
         // watch: check if im tagged
         players.forEach(player => {
@@ -443,7 +444,7 @@ class InGame extends Component {
     const filterOutOriginalTagger = players.filter(
       p => p.id !== this.state.tagger.id
     );
-    const justTagged = filterOutOriginalTagger.filter(p => p.tagged);
+    const justTagged = filterOutOriginalTagger.filter(p => p.tagger);
     console.log("just tagged", justTagged);
 
     justTagged.forEach(p => {
