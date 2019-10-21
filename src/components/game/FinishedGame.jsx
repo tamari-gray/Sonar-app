@@ -24,35 +24,47 @@ class FinishedGame extends Component {
 
           // increment winners wins
           if (doc.data().winner.id === this.props.user.UID) {
-            let playerWins = 0;
-            db.collection("users")
-              .doc(this.props.user.UID)
-              .get()
-              .then(doc => {
-                if (doc.data().wins) {
-                  playerWins = doc.data().wins;
-                }
-              })
-              .then(() => {
-                db.collection("users")
-                  .doc(this.props.user.UID)
-                  .update({
-                    wins: playerWins + 1
-                  })
-                  .then(function() {
-                    console.log("updated user stats");
-                  })
-                  .catch(function(error) {
-                    // The document probably doesn't exist.
-                    console.error("Error updating user stats ", error);
-                  });
-              });
+            this.updateWinTotal();
           }
+        } else if (doc.data().draw) {
+          this.setState({
+            draw: doc.data().draw
+          });
+
+          const Iwon = doc.data().draw.find(p => p.id === this.props.user.UID);
+
+          if (Iwon) this.updateWinTotal();
         }
       });
   };
+
+  updateWinTotal = () => {
+    let playerWins = 0;
+    db.collection("users")
+      .doc(this.props.user.UID)
+      .get()
+      .then(doc => {
+        if (doc.data().wins) {
+          playerWins = doc.data().wins;
+        }
+      })
+      .then(() => {
+        db.collection("users")
+          .doc(this.props.user.UID)
+          .update({
+            wins: playerWins + 1
+          })
+          .then(function() {
+            console.log("updated user stats");
+          })
+          .catch(function(error) {
+            // The document probably doesn't exist.
+            console.error("Error updating user stats ", error);
+          });
+      });
+  };
   render() {
-    const { winner } = this.state;
+    const { winner, draw } = this.state;
     return (
       <Box>
         {winner && (
@@ -61,7 +73,15 @@ class FinishedGame extends Component {
             align="center"
             style={{ paddingLeft: "1em", paddingRight: "1em" }}
           >
-            <Heading>{winner.name} won!</Heading>
+            {winner && <Heading>{winner.name} won!</Heading>}
+            {draw && (
+              <div>
+                <Heading>Its a draw!</Heading>
+                {draw.map(p => {
+                  return <Heading>{p.name} won!</Heading>;
+                })}
+              </div>
+            )}
           </Box>
         )}
         <Button as={Link} to="/profile" primary label="go home" />

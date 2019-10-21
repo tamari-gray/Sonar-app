@@ -372,20 +372,30 @@ class InGame extends Component {
       .collection("matches")
       .doc(this.props.matchId)
       .collection("players")
-      .near({ center, radius: 5 });
+      .near({ center, radius: 2.5 });
 
     query.get().then(value => {
-      // All GeoDocument returned by GeoQuery, like the GeoDocument added above
-      value.docs.forEach(player => {
-        geoDb
-          .collection("matches")
+      //check if they are last players
+      if (query.length === this.state.remainingPlayers.length) {
+        db.collection("finishedMatches")
           .doc(this.props.matchId)
-          .collection("players")
-          .doc(player.id)
-          .update({
-            tagger: true
-          });
-      });
+          .set({
+            draw: query
+          })
+          .then(() => console.log("match drew"))
+          .catch(e => console.log(`error when setting match draw ${e}`));
+      } else {
+        value.docs.forEach(player => {
+          geoDb
+            .collection("matches")
+            .doc(this.props.matchId)
+            .collection("players")
+            .doc(player.id)
+            .update({
+              tagger: true
+            });
+        });
+      }
     });
   };
   watchAllPlayers = () => {
@@ -398,6 +408,13 @@ class InGame extends Component {
         querySnapshot.forEach(doc => {
           players.push(doc.data());
         });
+
+        //work out remaining players
+        const remainingPlayers = players.filter(p => !p.tagger);
+        this.setState({
+          remainingPlayers
+        });
+
         // watch: check if im tagged
         players.forEach(player => {
           if (player.id === this.props.user.UID) {
