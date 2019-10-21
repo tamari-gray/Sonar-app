@@ -413,7 +413,6 @@ class InGame extends Component {
           }
           if (change.type === "modified") {
             const player = change.doc.data();
-            console.log("updated", player);
             this.checkForSonars(player);
             this.checkIfImTagged(player);
           }
@@ -421,6 +420,7 @@ class InGame extends Component {
             console.log("removed", change.doc.data());
           }
         });
+
         const players = [];
         querySnapshot.forEach(doc => {
           players.push(doc.data());
@@ -435,10 +435,10 @@ class InGame extends Component {
         console.log("remaining", remainingPlayers);
 
         // //watch: check for winner
-        // this.checkForWinner(players);
+        this.checkForWinner(players);
 
         // //watch: check if all players tagged
-        // this.checkIfAllPlayersAreTagged(players);
+        this.checkIfAllPlayersAreTagged(players);
       });
   };
   checkIfImTagged = player => {
@@ -474,23 +474,6 @@ class InGame extends Component {
       }, 3000);
     });
   };
-  checkForWinner = players => {
-    const notTagged = players.filter(p => !p.tagger);
-
-    if (notTagged.length === 1) {
-      const winner = notTagged[0];
-      console.log("winner:", winner);
-      db.collection("finishedMatches")
-        .doc(this.props.matchId)
-        .set({
-          winner
-        })
-        .then(() => console.log(`set winner ${winner.name}`))
-        .catch(error => {
-          console.log("Error setting winner", error);
-        });
-    }
-  };
   checkForSonars = player => {
     if (this.state.imTagger) {
       if (player.sonar === true) {
@@ -519,6 +502,24 @@ class InGame extends Component {
       }
     }
   };
+  checkForWinner = players => {
+    const notTagged = players.filter(p => !p.tagger);
+
+    if (notTagged.length === 1) {
+      const winner = notTagged[0];
+      console.log("winner:", winner);
+      db.collection("finishedMatches")
+        .doc(this.props.matchId)
+        .set({
+          winner
+        })
+        .then(() => console.log(`set winner ${winner.name}`))
+        .catch(error => {
+          console.log("Error setting winner", error);
+        });
+    }
+  };
+
   checkIfAllPlayersAreTagged = players => {
     const allPlayersTaggged = players.every(player => player.tagger);
 
