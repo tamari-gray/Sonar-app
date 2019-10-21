@@ -412,8 +412,10 @@ class InGame extends Component {
             console.log("added", change.doc.data());
           }
           if (change.type === "modified") {
-            console.log("updated", change.doc.data());
-            this.checkForSonars(change.doc.data());
+            const player = change.doc.data();
+            console.log("updated", player);
+            this.checkForSonars(player);
+            this.checkIfImTagged(player);
           }
           if (change.type === "removed") {
             console.log("removed", change.doc.data());
@@ -422,10 +424,6 @@ class InGame extends Component {
         const players = [];
         querySnapshot.forEach(doc => {
           players.push(doc.data());
-
-          // if doc.chang === update => check for playerTag
-          //watch: check when someone is tagged
-          // this.checkForPlayerTag(players);
         });
 
         //work out remaining players
@@ -436,24 +434,19 @@ class InGame extends Component {
 
         console.log("remaining", remainingPlayers);
 
-        // watch: check if im tagged
-        players.forEach(player => {
-          if (player.id === this.props.user.UID) {
-            if (player.tagger) {
-              this.setState({ imTagger: true });
-            }
-          }
-        });
-
-        // // watch: check for sonar use
-        // this.checkForSonars(players);
-
         // //watch: check for winner
         // this.checkForWinner(players);
 
         // //watch: check if all players tagged
         // this.checkIfAllPlayersAreTagged(players);
       });
+  };
+  checkIfImTagged = player => {
+    if (player.id === this.props.user.UID) {
+      if (player.tagger) {
+        this.setState({ imTagger: true });
+      }
+    }
   };
   checkForPlayerTag = players => {
     const filterOutOriginalTagger = players.filter(
