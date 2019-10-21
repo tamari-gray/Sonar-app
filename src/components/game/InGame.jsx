@@ -397,7 +397,8 @@ class InGame extends Component {
             .collection("players")
             .doc(player.id)
             .update({
-              tagger: true
+              tagger: true,
+              sonar: false
             })
             .then(console.log(`updated ${player.name} doc to tagger: true`))
             .catch(e => console.log(`error updating player to tagger ${e}`));
