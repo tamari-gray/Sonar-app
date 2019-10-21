@@ -50,7 +50,6 @@ class InGame extends Component {
     snitchingOn: [],
     remainingPlayers: []
   };
-
   componentDidMount() {
     if (this.props) {
       this.initMap();
@@ -204,7 +203,7 @@ class InGame extends Component {
           this.setState({ finished: true });
         }
 
-        console.log(doc.data());
+        console.log("match data", doc.data());
       });
   };
   deleteMatch = () => {
@@ -526,7 +525,6 @@ class InGame extends Component {
         });
     }
   };
-
   endGame = () => {
     geoDb
       .collection("matches")
