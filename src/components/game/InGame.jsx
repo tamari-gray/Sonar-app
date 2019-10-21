@@ -320,13 +320,12 @@ class InGame extends Component {
 
     map.on("locationerror", e => {
       alert(`Please enable geolocation access to play game. 
-      redirecting to home screen in 5 seconds
-      ${e}`);
+      redirecting in 2 seconds`);
       setTimeout(() => {
         this.setState({
           geolocationError: true
         });
-      }, 5000);
+      }, 2500);
     });
 
     map.locate({ maxZoom: 22, watch: true, enableHighAccuracy: true });
