@@ -193,7 +193,10 @@ class InGame extends Component {
         // check who le tagger is
         if (doc.data().tagger) {
           if (doc.data().tagger.id === this.props.user.UID) {
-            this.setState({ imTagger: true, tagger: doc.data().tagger });
+            this.setState({
+              imTagger: true,
+              tagger: doc.data().tagger
+            });
           } else {
             this.setState({ tagger: doc.data().tagger });
           }
@@ -206,6 +209,15 @@ class InGame extends Component {
             this.deleteMatch();
           }
           this.setState({ finished: true });
+        }
+
+        // if game is finished
+        if (doc.data().quit) {
+          clearInterval(gameTimerId);
+          if (this.state.admin) {
+            this.deleteMatch();
+          }
+          this.setState({ quit: true });
         }
 
         console.log("match data", doc.data());
@@ -440,7 +452,6 @@ class InGame extends Component {
       });
   };
   checkForTaggedPlayers = player => {
-    console.log("hi?");
     console.log(player.name + "was tagged");
     let pos = [player.coordinates.latitude, player.coordinates.longitude];
     const marker = L.circle(pos, {
@@ -592,6 +603,18 @@ class InGame extends Component {
         console.log("Error ending game", error);
       });
   };
+  quitGame = () => {
+    geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .update({
+        quit: true
+      })
+      .then(() => console.log("admin quit game"))
+      .catch(error => {
+        console.log("Error quiting game", error);
+      });
+  };
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
     DBwatchAllPlayers && DBwatchAllPlayers();
@@ -620,12 +643,15 @@ class InGame extends Component {
       playing,
       sonarTimer,
       initialisingTimer,
-      remainingPlayers
+      remainingPlayers,
+      quit
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
     } else if (finished) {
       return <Redirect to={`${this.props.matchId}/finished`} />;
+    } else if (quit) {
+      return <Redirect to={routes.HOME} />;
     } else {
       return (
         <Box align="center">
@@ -638,8 +664,11 @@ class InGame extends Component {
           {// if waiting and admin
           admin && waiting && (
             <div>
-              <p>press play when all players have joined game.</p>
-              <Button onClick={this.chooseTagger} label="Play!" primary />
+              <p>Press play when all players have joined game.</p>
+              <Box align="center" direction="row">
+                <Button onClick={this.chooseTagger} label="Play!" primary />
+                <Button onClick={this.quitGame} label="Quit" secondary />
+              </Box>
             </div>
           )}
           {// if waiting and not admin
