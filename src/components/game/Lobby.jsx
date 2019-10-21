@@ -79,6 +79,7 @@ class Lobby extends Component {
           .set({
             id: userId,
             name: username,
+            sonar: false,
             coordinates: new firebase.firestore.GeoPoint(0, 0)
           })
           .then(() => this.setState({ matchId: docRef.id }))
@@ -98,6 +99,7 @@ class Lobby extends Component {
       .set({
         id: userId,
         name: username,
+        sonar: false,
         coordinates: new firebase.firestore.GeoPoint(0, 0)
       })
       .then(() => this.setState({ matchId }))

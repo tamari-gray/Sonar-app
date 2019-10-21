@@ -10,10 +10,10 @@ import { Redirect } from "react-router-dom";
 
 let map = null;
 let thisUser = null;
+let taggers = [];
 
 // firebase listeners
 let DBgetMatch = null;
-let DBtagged = null;
 let DBwatchAllPlayers = null;
 
 //timers
@@ -54,7 +54,6 @@ class InGame extends Component {
       this.initMap();
       this.getMatch(); // toggle play btn
       this.watchAllPlayers();
-      this.checkIfAllPlayersAreTagged(); // to end game
     }
   }
   putPlayersMarkersOnMap = players => {
@@ -87,60 +86,69 @@ class InGame extends Component {
       }
     }, 1000);
   };
-  showAllPlayersLatestLocation = () => {
+  sendSonar = () => {
     // get all players from db ONCE
-    let players = [];
-    const userName = this.props.user.username;
     geoDb
       .collection("matches")
       .doc(this.props.matchId)
       .collection("players")
+      .where("tagger", "==", true)
       .get()
       .then(querySnapshot => {
-        querySnapshot.forEach(doc => {
-          if (doc.data().name !== userName) {
-            if (!doc.data().tagged) {
-              let pos = [];
-              if (doc.data().fakePos) {
-                pos = [doc.data().fakePos[0], doc.data().fakePos[1]];
-              } else {
-                pos = [
-                  doc.data().coordinates.latitude,
-                  doc.data().coordinates.longitude
-                ];
-              }
-
-              const marker = L.circle(pos, {
-                // set player marker to black
-                color: "green",
-                fillColor: "green",
-                fillOpacity: 0.5,
-                radius: 5
-              })
-                .addTo(map)
-                .bindPopup(doc.data().name)
-                .openPopup();
-              players.push(marker);
-            }
-          }
+        //remove prev sonar
+        taggers.forEach(tagger => {
+          map.removeLayer(tagger);
         });
+
+        //put taggers on map
+        const newTaggers = [];
+        querySnapshot.forEach(doc => {
+          let pos = [
+            doc.data().coordinates.latitude,
+            doc.data().coordinates.longitude
+          ];
+          const marker = L.circle(pos, {
+            color: "green",
+            fillColor: "green",
+            fillOpacity: 0.5,
+            radius: 2.5
+          })
+            .addTo(map)
+            .bindPopup(doc.data().name)
+            .openPopup();
+          newTaggers.push(marker);
+        });
+
+        // set new taggers
+        taggers = newTaggers;
       })
       .then(() => {
-        let timer = 20;
-        const intervalId = setInterval(() => {
-          timer = timer - 1;
-          if (timer === 0) {
-            players.forEach(player => {
-              if (map !== null) {
-                map.removeLayer(player);
-              }
-            });
-            clearInterval(intervalId);
-          }
-          this.setState({
-            sonarTimer: timer
-          });
-        }, 1000);
+        // notify taggers i used sonar
+        geoDb
+          .collection("matches")
+          .doc(this.props.matchId)
+          .collection("players")
+          .doc(this.props.user.UID)
+          .update({
+            sonar: false
+          })
+          .then(() => {
+            console.log("set sonar to false to remove prev marker");
+          })
+          .then(() => {
+            geoDb
+              .collection("matches")
+              .doc(this.props.matchId)
+              .collection("players")
+              .doc(this.props.user.UID)
+              .update({
+                sonar: true
+              })
+              .then(() => console.log("updated sonar usage"))
+              .catch(e => console.log(`error updating sonar usage, ${e}`));
+          })
+          .then(() => console.log("updated sonar usage"))
+          .catch(e => console.log(`error updating sonar usage, ${e}`));
       });
   };
   getMatch = () => {
@@ -181,9 +189,6 @@ class InGame extends Component {
         if (doc.data().tagger) {
           if (doc.data().tagger === this.props.user.username) {
             this.setState({ imTagger: true, tagger: doc.data().tagger });
-            if (thisUser !== null) {
-              thisUser.setRadius(20);
-            }
           } else {
             this.setState({ tagger: doc.data().tagger });
           }
@@ -386,17 +391,17 @@ class InGame extends Component {
         geoDb
           .collection("matches")
           .doc(this.props.matchId)
-          .update({ initialising: true, waiting: false, tagger: tagger.name })
-          .catch(e => console.log(`Error initialising game. ${e}`));
+          .update({ initialising: true, waiting: false, tagger })
+          .catch(e => console.log(`Error choosing tagger. ${e}`));
 
         geoDb
           .collection("matches")
           .doc(this.props.matchId)
           .collection("players")
           .doc(tagger.id)
-          .update({ quirk: "Tagger" })
+          .update({ tagger: true })
           .then(() => console.log(` set tagger. ${tagger.name}`))
-          .catch(e => console.log(`Error initialising game. ${e}`));
+          .catch(e => console.log(`Error choosing tagger. ${e}`));
       });
   };
   tagPlayer = () => {
@@ -435,12 +440,51 @@ class InGame extends Component {
         querySnapshot.forEach(doc => {
           players.push(doc.data());
         });
+        // watch: check if im tagged
+        players.forEach(player => {
+          if (player.id === this.props.user.UID) {
+            if (player.tagger) {
+              this.setState({ imTagger: true });
+            }
+          }
+        });
+
+        // watch: check for sonar use
+        this.checkForSonars(players);
 
         this.checkIfAllPlayersAreTagged(players);
       });
   };
+  checkForSonars = players => {
+    let sonarActivePlayers = [];
+
+    if (this.state.imTagger) {
+      players.forEach(player => {
+        if (player.sonar === true) {
+          // add marker && add to sonarActivePlayers array ***************
+          let pos = [player.coordinates.latitude, player.coordinates.longitude];
+          const marker = L.circle(pos, {
+            color: "green",
+            fillColor: "green",
+            fillOpacity: 0.5,
+            radius: 2.5
+          })
+            .addTo(map)
+            .bindPopup(`${player.name} used their sonar`)
+            .openPopup();
+          sonarActivePlayers.push({ id: player.id, marker: marker });
+        } else if (player.sonar === false) {
+          const oldSonar = sonarActivePlayers.find(p => p.id === player.id);
+          if (oldSonar) {
+            map.remove(oldSonar.marker);
+            sonarActivePlayers = sonarActivePlayers.filter(p => p !== oldSonar);
+          }
+        }
+      });
+    }
+  };
   checkIfAllPlayersAreTagged = players => {
-    const allPlayersTaggged = players.every(player => player.tagged);
+    const allPlayersTaggged = players.every(player => player.tagger);
 
     if (allPlayersTaggged) {
       db.collection("finishedMatches")
@@ -468,16 +512,14 @@ class InGame extends Component {
         });
     }
   };
-
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
     DBwatchAllPlayers();
     DBgetMatch();
-    DBtagged();
+
     map = null;
     thisUser = null;
     DBgetMatch = null;
-    DBtagged = null;
     DBwatchAllPlayers = null;
     initTimerId = null;
     gameTimerId = null;
@@ -522,7 +564,7 @@ class InGame extends Component {
 
           {initialising && !imTagger && (
             <div>
-              <h2>{`${tagger} is in!`}</h2>
+              <h2>{`${tagger.name} is in!`}</h2>
               <p>{`Game starts in ${initialisingTimer} seconds. GO HIDE!!!`}</p>
             </div>
           )}
@@ -536,7 +578,7 @@ class InGame extends Component {
             <Button
               primary
               style={{ padding: "0.8em" }}
-              onClick={this.showAllPlayersLatestLocation}
+              onClick={this.sendSonar}
               label="send sonar"
             />
           )}
