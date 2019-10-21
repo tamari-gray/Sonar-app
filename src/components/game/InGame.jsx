@@ -435,7 +435,8 @@ class InGame extends Component {
       });
   };
   checkForWinner = players => {
-    const notTagged = players.filter(p => !p.tagged);
+    const notTagged = players.filter(p => !p.tagger);
+
     if (notTagged.length === 1) {
       const winner = notTagged[0];
       console.log("winner:", winner);
