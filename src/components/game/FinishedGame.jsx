@@ -3,6 +3,7 @@ import { connect } from "react-redux";
 import { Link } from "react-router-dom";
 import { Box, Button, Heading } from "grommet";
 import { db } from "../../firebase";
+import routes from "../../routes";
 
 class FinishedGame extends Component {
   state = {};
@@ -17,23 +18,27 @@ class FinishedGame extends Component {
       .doc(this.props.matchId)
       .get()
       .then(doc => {
-        if (doc.data().winner) {
-          this.setState({
-            winner: doc.data().winner
-          });
+        if (doc.exists) {
+          if (doc.data().winner) {
+            this.setState({
+              winner: doc.data().winner
+            });
 
-          // increment winners wins
-          if (doc.data().winner.id === this.props.user.UID) {
-            this.updateWinTotal();
+            // increment winners wins
+            if (doc.data().winner.id === this.props.user.UID) {
+              this.updateWinTotal();
+            }
+          } else if (doc.data().draw) {
+            this.setState({
+              draw: doc.data().draw
+            });
+
+            const Iwon = doc
+              .data()
+              .draw.find(p => p.id === this.props.user.UID);
+
+            if (Iwon) this.updateWinTotal();
           }
-        } else if (doc.data().draw) {
-          this.setState({
-            draw: doc.data().draw
-          });
-
-          const Iwon = doc.data().draw.find(p => p.id === this.props.user.UID);
-
-          if (Iwon) this.updateWinTotal();
         }
       });
   };
@@ -54,7 +59,7 @@ class FinishedGame extends Component {
           .update({
             wins: playerWins + 1
           })
-          .then(function() {
+          .then(() => {
             console.log("updated user stats");
           })
           .catch(function(error) {
@@ -66,7 +71,7 @@ class FinishedGame extends Component {
   render() {
     const { winner, draw } = this.state;
     return (
-      <Box>
+      <Box align="center">
         {winner && (
           <Box
             justify="center"
@@ -84,7 +89,10 @@ class FinishedGame extends Component {
             )}
           </Box>
         )}
-        <Button as={Link} to="/profile" primary label="go home" />
+        <Box direction="row">
+          <Button as={Link} to={routes.LOBBY} primary label="play again" />
+          <Button as={Link} to={routes.PROFILE} secondary label="go home" />
+        </Box>
       </Box>
     );
   }
