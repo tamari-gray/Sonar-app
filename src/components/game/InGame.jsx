@@ -47,7 +47,8 @@ class InGame extends Component {
     abilityTimer: 0,
     quirk: false,
     abilityInUse: false,
-    snitchingOn: []
+    snitchingOn: [],
+    remainingPlayers: []
   };
 
   componentDidMount() {
@@ -415,6 +416,8 @@ class InGame extends Component {
           remainingPlayers
         });
 
+        console.log("remaining", remainingPlayers);
+
         //watch: check when someone is tagged
         this.checkForPlayerTag(players);
 
@@ -515,17 +518,29 @@ class InGame extends Component {
       geoDb
         .collection("matches")
         .doc(this.props.matchId)
-        .update({
-          initialising: false,
-          waiting: false,
-          playing: false,
-          finished: true
-        })
-        .then(() => console.log("game finished"))
-        .catch(error => {
-          console.log("Error ending game", error);
+        .get()
+        .then(doc => {
+          if (doc.exists) {
+            this.endGame();
+          }
         });
     }
+  };
+
+  endGame = () => {
+    geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .update({
+        initialising: false,
+        waiting: false,
+        playing: false,
+        finished: true
+      })
+      .then(() => console.log("game finished"))
+      .catch(error => {
+        console.log("Error ending game", error);
+      });
   };
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
@@ -606,6 +621,9 @@ class InGame extends Component {
               onClick={this.tagPlayer}
               label="tag"
             />
+          )}
+          {imTagger && playing && remainingPlayers.length > 0 && (
+            <p> {remainingPlayers.length} players left! </p>
           )}
         </Box>
       );
