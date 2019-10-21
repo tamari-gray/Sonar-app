@@ -3,6 +3,7 @@ import { connect } from "react-redux";
 import { Link } from "react-router-dom";
 import { Box, Button, Heading } from "grommet";
 import { db } from "../../firebase";
+import routes from "../../routes";
 
 class FinishedGame extends Component {
   state = {};
@@ -84,7 +85,10 @@ class FinishedGame extends Component {
             )}
           </Box>
         )}
-        <Button as={Link} to="/profile" primary label="go home" />
+        <Box direction="row">
+          <Button as={Link} to={routes.LOBBY} primary label="play again" />
+          <Button as={Link} to={routes.PROFILE} secondary label="go home" />
+        </Box>
       </Box>
     );
   }
