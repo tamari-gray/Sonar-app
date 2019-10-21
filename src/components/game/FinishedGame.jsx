@@ -71,7 +71,7 @@ class FinishedGame extends Component {
   render() {
     const { winner, draw } = this.state;
     return (
-      <Box>
+      <Box align="center">
         {winner && (
           <Box
             justify="center"
