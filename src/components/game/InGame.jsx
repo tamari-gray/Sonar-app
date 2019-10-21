@@ -572,7 +572,7 @@ class InGame extends Component {
         .get()
         .then(doc => {
           if (doc.exists) {
-            // this.endGame();
+            this.endGame();
           }
         });
     }
