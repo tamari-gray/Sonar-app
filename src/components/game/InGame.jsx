@@ -185,6 +185,7 @@ class InGame extends Component {
           clearInterval(initTimerId);
           this.setState({ playing: true });
           this.watchAllPlayers();
+          this.watchTaggedPlayers();
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
         }
@@ -423,12 +424,12 @@ class InGame extends Component {
       .collection("matches")
       .doc(this.props.matchId)
       .collection("taggedPlayers")
-      .onSnapshot(querySnapshot => {
-        querySnapshot.docChanges().forEach(change => {
+      .onSnapshot(snapShot => {
+        snapShot.docChanges().forEach(change => {
           if (change.type === "added") {
-            console.log("added", change.doc.data());
             const player = change.doc.data();
-            this.checkForPlayerTag(player);
+            console.log("yeet");
+            this.checkForTaggedPlayers(player);
           }
           if (change.type === "modified") {
           }
@@ -438,33 +439,9 @@ class InGame extends Component {
         });
       });
   };
-  checkForPlayerTagOG = players => {
-    const filterOutOriginalTagger = players.filter(
-      p => p.id !== this.state.tagger.id
-    );
-    const justTagged = filterOutOriginalTagger.filter(p => p.tagger);
-    console.log("just tagged", justTagged);
-
-    justTagged.forEach(p => {
-      let pos = [p.coordinates.latitude, p.coordinates.longitude];
-      const marker = L.circle(pos, {
-        color: "orange",
-        fillColor: "orange",
-        fillOpacity: 0.5,
-        radius: 2.5
-      })
-        .addTo(map)
-        .bindPopup(`${p.name} was tagged`)
-        .openPopup();
-      setTimeout(() => {
-        if (!this.state.finished) {
-          console.log("removing just tagged player marker");
-          map.removeLayer(marker);
-        }
-      }, 3000);
-    });
-  };
-  checkForPlayerTag = player => {
+  checkForTaggedPlayers = player => {
+    console.log("hi?");
+    console.log(player.name + "was tagged");
     let pos = [player.coordinates.latitude, player.coordinates.longitude];
     const marker = L.circle(pos, {
       color: "orange",
@@ -490,7 +467,7 @@ class InGame extends Component {
       .onSnapshot(querySnapshot => {
         querySnapshot.docChanges().forEach(change => {
           if (change.type === "added") {
-            console.log("added", change.doc.data());
+            // console.log("added", change.doc.data());
           }
           if (change.type === "modified") {
             const player = change.doc.data();
@@ -513,8 +490,6 @@ class InGame extends Component {
           remainingPlayers
         });
 
-        console.log("remaining", remainingPlayers);
-
         // //watch: check for winner
         this.checkForWinner(players);
 
@@ -526,10 +501,13 @@ class InGame extends Component {
     if (player.id === this.props.user.UID) {
       if (player.tagger) {
         this.setState({ imTagger: true });
+        taggers &&
+          taggers.forEach(tagger => {
+            map.removeLayer(tagger);
+          });
       }
     }
   };
-
   checkForSonars = player => {
     if (this.state.imTagger) {
       if (player.sonar === true) {
@@ -594,7 +572,7 @@ class InGame extends Component {
         .get()
         .then(doc => {
           if (doc.exists) {
-            this.endGame();
+            // this.endGame();
           }
         });
     }
