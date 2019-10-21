@@ -498,37 +498,6 @@ class InGame extends Component {
         });
     }
   };
-  checkForSonarsOG = players => {
-    let sonarActivePlayers = [];
-
-    if (this.state.imTagger) {
-      players.forEach(player => {
-        if (player.sonar === true) {
-          // add marker && add to sonarActivePlayers array ***************
-          let pos = [player.coordinates.latitude, player.coordinates.longitude];
-          const marker = L.circle(pos, {
-            color: "green",
-            fillColor: "green",
-            fillOpacity: 0.5,
-            radius: 2.5
-          })
-            .addTo(map)
-            .bindPopup(`${player.name} used their sonar`)
-            .openPopup();
-          sonarActivePlayers.push({ id: player.id, marker: marker });
-        } else if (player.sonar === false) {
-          console.log("false");
-          const oldSonar = sonarActivePlayers.find(p => p.id === player.id);
-          if (oldSonar) {
-            map.remove(oldSonar.marker);
-            sonarActivePlayers = sonarActivePlayers.filter(
-              p => p.id !== oldSonar.id
-            );
-          }
-        }
-      });
-    }
-  };
   checkForSonars = player => {
     if (this.state.imTagger) {
       if (player.sonar === true) {
