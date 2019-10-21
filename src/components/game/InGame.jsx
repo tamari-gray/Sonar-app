@@ -19,6 +19,7 @@ let sonarActivePlayers = [];
 // firebase listeners
 let DBgetMatch = null;
 let DBwatchAllPlayers = null;
+let DBwatchTaggedPlayers = null;
 
 //timers
 let initTimerId = null;
@@ -388,7 +389,8 @@ class InGame extends Component {
           .then(() => console.log("match drew"))
           .catch(e => console.log(`error when setting match draw ${e}`));
       } else {
-        value.docs.forEach(player => {
+        value.docs.forEach(p => {
+          const player = p.data();
           geoDb
             .collection("matches")
             .doc(this.props.matchId)
@@ -396,10 +398,88 @@ class InGame extends Component {
             .doc(player.id)
             .update({
               tagger: true
-            });
+            })
+            .then(console.log(`updated ${player.name} doc to tagger: true`))
+            .catch(e => console.log(`error updating player to tagger ${e}`));
+          geoDb
+            .collection("matches")
+            .doc(this.props.matchId)
+            .collection("taggedPlayers")
+            .doc(player.id)
+            .set({
+              name: player.name,
+              coordinates: new firebase.firestore.GeoPoint(1, 0)
+            })
+            .then(() =>
+              console.log(`added ${player.name} to tagged players doc`)
+            );
         });
       }
     });
+  };
+  watchTaggedPlayers = () => {
+    DBwatchTaggedPlayers = geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .collection("taggedPlayers")
+      .onSnapshot(querySnapshot => {
+        querySnapshot.docChanges().forEach(change => {
+          if (change.type === "added") {
+            console.log("added", change.doc.data());
+            const player = change.doc.data();
+            this.checkForPlayerTag(player);
+          }
+          if (change.type === "modified") {
+          }
+          if (change.type === "removed") {
+            console.log("removed", change.doc.data());
+          }
+        });
+      });
+  };
+  checkForPlayerTagOG = players => {
+    const filterOutOriginalTagger = players.filter(
+      p => p.id !== this.state.tagger.id
+    );
+    const justTagged = filterOutOriginalTagger.filter(p => p.tagger);
+    console.log("just tagged", justTagged);
+
+    justTagged.forEach(p => {
+      let pos = [p.coordinates.latitude, p.coordinates.longitude];
+      const marker = L.circle(pos, {
+        color: "orange",
+        fillColor: "orange",
+        fillOpacity: 0.5,
+        radius: 2.5
+      })
+        .addTo(map)
+        .bindPopup(`${p.name} was tagged`)
+        .openPopup();
+      setTimeout(() => {
+        if (!this.state.finished) {
+          console.log("removing just tagged player marker");
+          map.removeLayer(marker);
+        }
+      }, 3000);
+    });
+  };
+  checkForPlayerTag = player => {
+    let pos = [player.coordinates.latitude, player.coordinates.longitude];
+    const marker = L.circle(pos, {
+      color: "orange",
+      fillColor: "orange",
+      fillOpacity: 0.5,
+      radius: 2.5
+    })
+      .addTo(map)
+      .bindPopup(`${player.name} was tagged`)
+      .openPopup();
+    setTimeout(() => {
+      if (!this.state.finished) {
+        console.log("removing just tagged player marker");
+        map.removeLayer(marker);
+      }
+    }, 3000);
   };
   watchAllPlayers = () => {
     DBwatchAllPlayers = geoDb
@@ -448,48 +528,32 @@ class InGame extends Component {
       }
     }
   };
-  checkForPlayerTag = players => {
-    const filterOutOriginalTagger = players.filter(
-      p => p.id !== this.state.tagger.id
-    );
-    const justTagged = filterOutOriginalTagger.filter(p => p.tagger);
-    console.log("just tagged", justTagged);
 
-    justTagged.forEach(p => {
-      let pos = [p.coordinates.latitude, p.coordinates.longitude];
-      const marker = L.circle(pos, {
-        color: "orange",
-        fillColor: "orange",
-        fillOpacity: 0.5,
-        radius: 2.5
-      })
-        .addTo(map)
-        .bindPopup(`${p.name} was tagged`)
-        .openPopup();
-      setTimeout(() => {
-        if (!this.state.finished) {
-          console.log("removing just tagged player marker");
-          map.removeLayer(marker);
-        }
-      }, 3000);
-    });
-  };
   checkForSonars = player => {
     if (this.state.imTagger) {
       if (player.sonar === true) {
-        // add marker && add to sonarActivePlayers array ***************
-        const pos = [player.coordinates.latitude, player.coordinates.longitude];
-        console.log("player");
-        const marker = L.circle(pos, {
-          color: "green",
-          fillColor: "green",
-          fillOpacity: 0.5,
-          radius: 2.5
-        })
-          .addTo(map)
-          .bindPopup(`${player.name} used their sonar`)
-          .openPopup();
-        sonarActivePlayers.push({ id: player.id, marker: marker });
+        const alreadyActive = sonarActivePlayers.find(p => p.id === player.id);
+        if (!alreadyActive) {
+          // add marker && add to sonarActivePlayers array ***************
+          const pos = [
+            player.coordinates.latitude,
+            player.coordinates.longitude
+          ];
+          console.log("player");
+          const marker = L.circle(pos, {
+            color: "green",
+            fillColor: "green",
+            fillOpacity: 0.5,
+            radius: 2.5
+          })
+            .addTo(map)
+            .bindPopup(`${player.name} used their sonar`)
+            .openPopup();
+          sonarActivePlayers.push({
+            id: player.id,
+            marker: marker
+          });
+        }
       } else if (player.sonar === false) {
         const oldSonar = sonarActivePlayers.filter(p => p.id === player.id);
         const oldMarker = oldSonar[0];
@@ -519,7 +583,6 @@ class InGame extends Component {
         });
     }
   };
-
   checkIfAllPlayersAreTagged = players => {
     const allPlayersTaggged = players.every(player => player.tagger);
 
@@ -553,12 +616,14 @@ class InGame extends Component {
   componentWillUnmount() {
     // unsubscribe firestore listeners & reset global vars
     DBwatchAllPlayers && DBwatchAllPlayers();
+    DBwatchTaggedPlayers && DBwatchTaggedPlayers();
     DBgetMatch && DBgetMatch();
 
     map = null;
     thisUser = null;
     DBgetMatch = null;
     DBwatchAllPlayers = null;
+    DBwatchTaggedPlayers = null;
     initTimerId = null;
     gameTimerId = null;
   }
