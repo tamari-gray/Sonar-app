@@ -90,11 +90,7 @@ class ClassSelect extends Component {
           <Box pad="large" align="center" background="dark-2" round gap="small">
             <Car size="large" color="light-2" />
             <Text>Tagger</Text>
-            <Text size="small">
-              Tag anyone within 20m of you. You have the power to send a sonar
-              which shows everyones latest position. If you tag everyone within
-              10 minutes you win!
-            </Text>
+            <Text size="small">Tag anyone within 5m of you. no mercy</Text>
           </Box>
           {this.state.classes.map(type => {
             return (
