@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
-import { Box, Button } from "grommet";
+import { Box, Button, Heading } from "grommet";
 import { db } from "../../firebase";
 
 class FinishedGame extends Component {
@@ -13,20 +13,17 @@ class FinishedGame extends Component {
 
   getWinners = () => {
     // connect to firebase
-    const username = this.props.user.username;
     db.collection("finishedMatches")
       .doc(this.props.matchId)
       .get()
       .then(doc => {
-        if (doc.data().winners) {
+        if (doc.data().winner) {
           this.setState({
-            winners: doc.data().winners
+            winner: doc.data().winner
           });
-          const userWon = doc
-            .data()
-            .winners.find(winner => winner === username);
 
-          if (userWon) {
+          // increment winners wins
+          if (doc.data().winner.id === this.props.user.UID) {
             let playerWins = 0;
             db.collection("users")
               .doc(this.props.user.UID)
@@ -55,20 +52,16 @@ class FinishedGame extends Component {
       });
   };
   render() {
-    const { winners } = this.state;
+    const { winner } = this.state;
     return (
       <Box>
-        {winners && (
+        {winner && (
           <Box
             justify="center"
             align="center"
             style={{ paddingLeft: "1em", paddingRight: "1em" }}
           >
-            <h1>Winners: </h1> <br />
-            {winners !== undefined &&
-              winners.map(winner => {
-                return <h3 key={winner}>{winner}</h3>;
-              })}
+            <Heading>{winner.name} won!</Heading>
           </Box>
         )}
         <Button as={Link} to="/profile" primary label="go home" />
