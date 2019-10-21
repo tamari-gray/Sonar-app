@@ -169,6 +169,7 @@ class InGame extends Component {
           // check if game is in waiting phase
           if (doc.data().waiting === true) {
             this.setState({ waiting: true });
+            this.watchAllPlayers();
           } else if (doc.data().waiting === false) {
             this.setState({ waiting: false });
           }
@@ -185,7 +186,6 @@ class InGame extends Component {
           if (doc.data().playing) {
             clearInterval(initTimerId);
             this.setState({ playing: true });
-            this.watchAllPlayers();
             this.watchTaggedPlayers();
           } else if (doc.data().playing === false) {
             this.setState({ playing: false });
@@ -479,16 +479,17 @@ class InGame extends Component {
       .collection("players")
       .onSnapshot(querySnapshot => {
         querySnapshot.docChanges().forEach(change => {
-          if (change.type === "added") {
-            // console.log("added", change.doc.data());
-          }
-          if (change.type === "modified") {
-            const player = change.doc.data();
-            this.checkForSonars(player);
-            this.checkIfImTagged(player);
-          }
-          if (change.type === "removed") {
-            console.log("removed", change.doc.data());
+          if (this.state.playing) {
+            if (change.type === "added") {
+            }
+            if (change.type === "modified") {
+              const player = change.doc.data();
+              this.checkForSonars(player);
+              this.checkIfImTagged(player);
+            }
+            if (change.type === "removed") {
+              console.log("removed", change.doc.data());
+            }
           }
         });
 
@@ -497,17 +498,27 @@ class InGame extends Component {
           players.push(doc.data());
         });
 
-        //work out remaining players
-        const remainingPlayers = players.filter(p => !p.tagger);
-        this.setState({
-          remainingPlayers
-        });
+        // show play btn if more then 1 player in game
+        if (players.length > 1) {
+          console.log("greater", players.lenngth);
+          this.setState({
+            showPlayBtn: true
+          });
+        }
 
-        // //watch: check for winner
-        this.checkForWinner(players);
+        if (this.state.playing) {
+          //work out remaining players
+          const remainingPlayers = players.filter(p => !p.tagger);
+          this.setState({
+            remainingPlayers
+          });
 
-        // //watch: check if all players tagged
-        this.checkIfAllPlayersAreTagged(players);
+          // //watch: check for winner
+          this.checkForWinner(players);
+
+          // //watch: check if all players tagged
+          this.checkIfAllPlayersAreTagged(players);
+        }
       });
   };
   checkIfImTagged = player => {
@@ -646,7 +657,8 @@ class InGame extends Component {
       sonarTimer,
       initialisingTimer,
       remainingPlayers,
-      quit
+      quit,
+      showPlayBtn
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -666,9 +678,16 @@ class InGame extends Component {
           {// if waiting and admin
           admin && waiting && (
             <div>
-              <p>Press play when all players have joined game.</p>
+              {showPlayBtn ? (
+                <p>Press play when all players have joined game.</p>
+              ) : (
+                <p style={{ marginRight: "2em" }}>no players joined yet..</p>
+              )}
+
               <Box align="center" direction="row">
-                <Button onClick={this.chooseTagger} label="Play!" primary />
+                {showPlayBtn && (
+                  <Button onClick={this.chooseTagger} label="Play!" primary />
+                )}
                 <Button onClick={this.quitGame} label="Quit" secondary />
               </Box>
             </div>
