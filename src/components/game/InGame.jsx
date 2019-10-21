@@ -11,6 +11,7 @@ import { Redirect } from "react-router-dom";
 let map = null;
 let thisUser = null;
 let taggers = [];
+let taggedPlayersMarkers = [];
 
 // firebase listeners
 let DBgetMatch = null;
@@ -186,7 +187,7 @@ class InGame extends Component {
 
         // check who le tagger is
         if (doc.data().tagger) {
-          if (doc.data().tagger === this.props.user.username) {
+          if (doc.data().tagger.id === this.props.user.UID) {
             this.setState({ imTagger: true, tagger: doc.data().tagger });
           } else {
             this.setState({ tagger: doc.data().tagger });
@@ -414,6 +415,9 @@ class InGame extends Component {
           remainingPlayers
         });
 
+        //watch: check when someone is tagged
+        this.checkForPlayerTag(players);
+
         // watch: check if im tagged
         players.forEach(player => {
           if (player.id === this.props.user.UID) {
@@ -432,6 +436,32 @@ class InGame extends Component {
         //watch: check if all players tagged
         this.checkIfAllPlayersAreTagged(players);
       });
+  };
+  checkForPlayerTag = players => {
+    const filterOutOriginalTagger = players.filter(
+      p => p.id !== this.state.tagger.id
+    );
+    const justTagged = filterOutOriginalTagger.filter(p => p.tagged);
+    console.log("just tagged", justTagged);
+
+    justTagged.forEach(p => {
+      let pos = [p.coordinates.latitude, p.coordinates.longitude];
+      const marker = L.circle(pos, {
+        color: "orange",
+        fillColor: "orange",
+        fillOpacity: 0.5,
+        radius: 2.5
+      })
+        .addTo(map)
+        .bindPopup(`${p.name} was tagged`)
+        .openPopup();
+      setTimeout(() => {
+        if (!this.state.finished) {
+          console.log("removing just tagged player marker");
+          map.removeLayer(marker);
+        }
+      }, 3000);
+    });
   };
   checkForWinner = players => {
     const notTagged = players.filter(p => !p.tagger);
@@ -522,7 +552,8 @@ class InGame extends Component {
       geolocationError,
       playing,
       sonarTimer,
-      initialisingTimer
+      initialisingTimer,
+      remainingPlayers
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
