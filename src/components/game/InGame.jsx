@@ -2,6 +2,7 @@ import * as firebase from "firebase/app";
 import React, { Component } from "react";
 import { connect } from "react-redux";
 import { Box, Button } from "grommet";
+import { Close } from "grommet-icons";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { db, geoDb } from "../../firebase";
@@ -55,39 +56,51 @@ class InGame extends Component {
     remainingPlayers: []
   };
   componentDidMount() {
-    window.addEventListener("beforeunload", this.handlePlayerQuit);
+    window.addEventListener("beforeunload", () => {
+      setTimeout(() => {
+        console.log(
+          "player hasnt been active for more then 10 seconds => removed from game"
+        );
+        this.handlePlayerQuit();
+      }, 10000);
+    });
     if (this.props) {
       this.initMap();
       this.getMatch(); // toggle play btn
     }
   }
   handlePlayerQuit = () => {
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
-      .doc(this.props.user.UID)
-      .del()
-      .then(() => {
-        this.setState({ quit: true });
-        console.log("succesfully left game");
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId)
-          .update({
-            quitter: this.props.user.username
-          })
-          .then(() => {
-            console.log(
-              `updated game that ${this.props.user.username} has quit`
+    if (this.state.remainingPlayers.length === 1) {
+      this.endGame();
+    } else {
+      geoDb
+        .collection("matches")
+        .doc(this.props.matchId)
+        .collection("players")
+        .doc(this.props.user.UID)
+        .delete()
+        .then(() => {
+          this.setState({ quit: true });
+          console.log("succesfully left game");
+          geoDb
+            .collection("matches")
+            .doc(this.props.matchId)
+            .update({
+              quitter: this.props.user.username
+            })
+            .then(() => {
+              console.log(
+                `updated game that ${this.props.user.username} has quit`
+              );
+            })
+            .catch(e =>
+              console.log(
+                `error updating game that ${this.props.user.username} has quit`
+              )
             );
-          })
-          .catch(e =>
-            console.log(
-              `error updating game that ${this.props.user.username} has quit`
-            )
-          );
-      });
+        })
+        .catch(e => console.log(`error removing player from match `));
+    }
   };
   putPlayersMarkersOnMap = players => {
     const markers = [];
@@ -251,12 +264,40 @@ class InGame extends Component {
           }
 
           if (doc.data().quitter) {
+            console.log("we got a quitter", doc.data().quitter);
             this.setState({
               quitter: doc.data().quitter
             });
+
+            if (doc.data().quitter === doc.data().tagger.name) {
+              this.setDraw();
+            }
           }
 
           console.log("match data", doc.data());
+        }
+      });
+  };
+  setDraw = () => {
+    const players = this.state.remainingPlayers;
+    console.log("draw winners", players);
+    db.collection("finishedMatches")
+      .doc(this.props.matchId)
+      .get()
+      .then(doc => {
+        if (!doc.exists) {
+          db.collection("finishedMatches")
+            .doc(this.props.matchId)
+            .set({
+              draw: players
+            })
+            .then(() => {
+              console.log("game has ended in a draw");
+              this.endGame();
+            })
+            .catch(e => {
+              console.log("error ending game as draw: ", e);
+            });
         }
       });
   };
@@ -546,6 +587,10 @@ class InGame extends Component {
           this.setState({
             remainingPlayers
           });
+          console.log("remaining", remainingPlayers.length);
+          if (this.state.remainingPlayers.length === 1) {
+            this.endGame();
+          }
 
           // //watch: check for winner
           this.checkForWinner(players);
@@ -704,7 +749,8 @@ class InGame extends Component {
       remainingPlayers,
       quit,
       showPlayBtn,
-      quitter
+      quitter,
+      showQuitOverlay
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -715,7 +761,73 @@ class InGame extends Component {
     } else {
       return (
         <Box align="center">
-          <Box id="map" style={{ height: "60vh", width: "100%" }}></Box>
+          {showQuitOverlay && (
+            <div>
+              <div
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  width: "100vw",
+                  height: "100vh",
+                  zIndex: 3,
+                  backgroundColor: "grey",
+                  opacity: 0.7
+                }}
+              ></div>
+              <Box
+                pad="medium"
+                background="light-2"
+                style={{
+                  height: "20vh",
+                  width: "60vw",
+                  position: "fixed",
+                  left: "50%",
+                  top: "50%",
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 3
+                }}
+              >
+                <p style={{ textAlign: "center" }}>
+                  Are you sure you want to quit?
+                </p>
+                <Box
+                  style={{ position: "relative", zIndex: 4 }}
+                  direction="row"
+                  align="center"
+                  justify="between"
+                >
+                  <Button
+                    hoverIndicator
+                    primary
+                    label="return to game"
+                    onClick={() => this.setState({ showQuitOverlay: false })}
+                  />
+                  <Button
+                    hoverIndicator
+                    secondary
+                    label="Quit"
+                    onClick={this.handlePlayerQuit}
+                  />
+                </Box>
+              </Box>
+            </div>
+          )}
+          <Box
+            style={{ position: "fixed", top: "1em", right: "1em", zIndex: 2 }}
+          >
+            <Box round="full" overflow="hidden" background="light-2">
+              <Button
+                icon={<Close />}
+                hoverIndicator
+                onClick={() => this.setState({ showQuitOverlay: true })}
+              />
+            </Box>
+          </Box>
+          <Box
+            id="map"
+            style={{ height: "60vh", width: "100%", zIndex: 1 }}
+          ></Box>
           {playing && (
             <div>
               <p style={{ color: "red" }}>{gameTimer}</p>
