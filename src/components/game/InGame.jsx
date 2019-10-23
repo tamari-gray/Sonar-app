@@ -171,41 +171,68 @@ class InGame extends Component {
           .doc(this.props.user.UID)
           .set({
             name: this.props.user.username,
-            id: this.props.user.UID
+            id: this.props.user.UID,
+            coordinates: new firebase.firestore.GeoPoint(1, 0)
           })
           .then(() => {
             console.log("added player to sonard players coll");
+            // setTimeout(() => {
+            geoDb
+              .collection("matches")
+              .doc(this.props.matchId)
+              .collection("sonardPlayers")
+              .doc(this.props.user.UID)
+              .delete()
+              .then(() => console.log(`removed player from sonard coll`))
+              .catch(e =>
+                console.log(`error deleting player from sonard coll ${e}`)
+              );
+            // }, 5000);
           })
           .catch(e =>
             console.log(`error adding player to sonard players coll ${e}`)
           );
-
-        // geoDb
-        //   .collection("matches")
-        //   .doc(this.props.matchId)
-        //   .collection("players")
-        //   .doc(this.props.user.UID)
-        //   .update({
-        //     sonar: false
-        //   })
-        //   .then(() => {
-        //     console.log("set sonar to false to remove prev marker");
-        //   })
-        //   .then(() => {
-        //     geoDb
-        //       .collection("matches")
-        //       .doc(this.props.matchId)
-        //       .collection("players")
-        //       .doc(this.props.user.UID)
-        //       .update({
-        //         sonar: true
-        //       })
-        //       .then(() => console.log("updated sonar usage"))
-        //       .catch(e => console.log(`error updating sonar usage, ${e}`));
-        //   })
-        //   .then(() => console.log("updated sonar usage"))
-        //   .catch(e => console.log(`error updating sonar usage, ${e}`));
       });
+  };
+  watchForSonardPlayers = () => {
+    DBwatchTaggedPlayers = geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .collection("sonardPlayers")
+      .onSnapshot(snapShot => {
+        snapShot.docChanges().forEach(change => {
+          if (change.type === "added") {
+            const player = change.doc.data();
+            this.checkForSonardPlayers(player);
+          }
+          if (change.type === "modified") {
+          }
+          if (change.type === "removed") {
+            console.log("removed", change.doc.data());
+          }
+        });
+      });
+  };
+  checkForSonardPlayers = player => {
+    if (this.state.imTagger) {
+      console.log(player.name + "used sonar");
+      let pos = [player.coordinates.latitude, player.coordinates.longitude];
+      const marker = L.circle(pos, {
+        color: "green",
+        fillColor: "green",
+        fillOpacity: 0.5,
+        radius: 2.5
+      })
+        .addTo(map)
+        .bindPopup(`player used sonar`)
+        .openPopup();
+      setTimeout(() => {
+        if (!this.state.finished) {
+          console.log("removing just sonard player marker");
+          map.removeLayer(marker);
+        }
+      }, 5000);
+    }
   };
   getMatch = () => {
     DBgetMatch = geoDb
@@ -242,6 +269,7 @@ class InGame extends Component {
             this.setState({ playing: true });
             this.watchAllPlayers();
             this.watchTaggedPlayers();
+            this.watchForSonardPlayers();
           } else if (doc.data().playing === false) {
             this.setState({ playing: false });
           }
