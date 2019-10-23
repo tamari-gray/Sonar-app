@@ -142,13 +142,6 @@ class InGame extends Component {
       .where("tagger", "==", true)
       .get()
       .then(querySnapshot => {
-        //remove prev sonar
-        taggers.forEach(tagger => {
-          map.removeLayer(tagger);
-        });
-
-        //put taggers on map
-        const newTaggers = [];
         querySnapshot.forEach(doc => {
           let pos = [
             doc.data().coordinates.latitude,
@@ -163,39 +156,55 @@ class InGame extends Component {
             .addTo(map)
             .bindPopup("Tagger")
             .openPopup();
-          newTaggers.push(marker);
-        });
 
-        // set new taggers
-        taggers = newTaggers;
+          setTimeout(() => {
+            map.removeLayer(marker);
+          }, 5000);
+        });
       })
       .then(() => {
         // notify taggers i used sonar
         geoDb
           .collection("matches")
           .doc(this.props.matchId)
-          .collection("players")
+          .collection("sonardPlayers")
           .doc(this.props.user.UID)
-          .update({
-            sonar: false
+          .set({
+            name: this.props.user.username,
+            id: this.props.user.UID
           })
           .then(() => {
-            console.log("set sonar to false to remove prev marker");
+            console.log("added player to sonard players coll");
           })
-          .then(() => {
-            geoDb
-              .collection("matches")
-              .doc(this.props.matchId)
-              .collection("players")
-              .doc(this.props.user.UID)
-              .update({
-                sonar: true
-              })
-              .then(() => console.log("updated sonar usage"))
-              .catch(e => console.log(`error updating sonar usage, ${e}`));
-          })
-          .then(() => console.log("updated sonar usage"))
-          .catch(e => console.log(`error updating sonar usage, ${e}`));
+          .catch(e =>
+            console.log(`error adding player to sonard players coll ${e}`)
+          );
+
+        // geoDb
+        //   .collection("matches")
+        //   .doc(this.props.matchId)
+        //   .collection("players")
+        //   .doc(this.props.user.UID)
+        //   .update({
+        //     sonar: false
+        //   })
+        //   .then(() => {
+        //     console.log("set sonar to false to remove prev marker");
+        //   })
+        //   .then(() => {
+        //     geoDb
+        //       .collection("matches")
+        //       .doc(this.props.matchId)
+        //       .collection("players")
+        //       .doc(this.props.user.UID)
+        //       .update({
+        //         sonar: true
+        //       })
+        //       .then(() => console.log("updated sonar usage"))
+        //       .catch(e => console.log(`error updating sonar usage, ${e}`));
+        //   })
+        //   .then(() => console.log("updated sonar usage"))
+        //   .catch(e => console.log(`error updating sonar usage, ${e}`));
       });
   };
   getMatch = () => {
@@ -625,38 +634,41 @@ class InGame extends Component {
   checkForSonars = player => {
     if (this.state.imTagger) {
       if (player.sonar === true) {
-        const alreadyActive = sonarActivePlayers.find(p => p.id === player.id);
-        if (!alreadyActive) {
-          // add marker && add to sonarActivePlayers array ***************
-          const pos = [
-            player.coordinates.latitude,
-            player.coordinates.longitude
-          ];
-          console.log("player");
-          const marker = L.circle(pos, {
-            color: "green",
-            fillColor: "green",
-            fillOpacity: 0.5,
-            radius: 2.5
-          })
-            .addTo(map)
-            .bindPopup(`${player.name} used their sonar`)
-            .openPopup();
-          sonarActivePlayers.push({
-            id: player.id,
-            marker: marker
-          });
-        }
-      } else if (player.sonar === false) {
-        const oldSonar = sonarActivePlayers.filter(p => p.id === player.id);
-        const oldMarker = oldSonar[0];
-        if (oldMarker) {
-          map.removeLayer(oldMarker.marker);
-          sonarActivePlayers = sonarActivePlayers.filter(
-            p => p.id !== oldMarker.id
-          );
-        }
+        // const alreadyActive = sonarActivePlayers.find(p => p.id === player.id);
+        // if (!alreadyActive) {
+        // add marker && add to sonarActivePlayers array ***************
+        const pos = [player.coordinates.latitude, player.coordinates.longitude];
+        console.log("setting just sonar'd player marker");
+        const marker = L.circle(pos, {
+          color: "green",
+          fillColor: "green",
+          fillOpacity: 0.5,
+          radius: 2.5
+        })
+          .addTo(map)
+          .bindPopup(`${player.name} used their sonar`)
+          .openPopup();
+        sonarActivePlayers.push({
+          id: player.id,
+          marker: marker
+        });
+        setTimeout(() => {
+          if (!this.state.finished) {
+            console.log("removing just sonar'd player marker");
+            map.removeLayer(marker);
+          }
+        }, 3000);
       }
+      // } else if (player.sonar === false) {
+      //   const oldSonar = sonarActivePlayers.filter(p => p.id === player.id);
+      //   const oldMarker = oldSonar[0];
+      //   if (oldMarker) {
+      //     map.removeLayer(oldMarker.marker);
+      //     sonarActivePlayers = sonarActivePlayers.filter(
+      //       p => p.id !== oldMarker.id
+      //     );
+      //   }
+      // }
     }
   };
   checkForWinner = players => {
