@@ -158,7 +158,9 @@ class InGame extends Component {
             .openPopup();
 
           setTimeout(() => {
-            map.removeLayer(marker);
+            if (!this.state.finished) {
+              map.removeLayer(marker);
+            }
           }, 5000);
         });
       })
@@ -311,6 +313,11 @@ class InGame extends Component {
             });
 
             if (doc.data().quitter === doc.data().tagger.name) {
+              // fix **************************************************************************************************
+              //  check if tagger hasnt tagged anyone
+
+              if (this.state.remainingPlayers) {
+              }
               console.log("setting draw..");
               this.setDraw();
             }
