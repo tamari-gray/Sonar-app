@@ -14,7 +14,6 @@ let thisUser = null;
 
 // markers
 let taggers = [];
-let taggedPlayersMarkers = [];
 let sonarActivePlayers = [];
 
 // firebase listeners
@@ -545,7 +544,6 @@ class InGame extends Component {
         snapShot.docChanges().forEach(change => {
           if (change.type === "added") {
             const player = change.doc.data();
-            console.log("yeet");
             this.checkForTaggedPlayers(player);
           }
           if (change.type === "modified") {
