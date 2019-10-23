@@ -316,10 +316,10 @@ class InGame extends Component {
               // fix **************************************************************************************************
               //  check if tagger hasnt tagged anyone
 
-              if (this.state.remainingPlayers) {
+              if (this.state.taggerHasTaggedSomeone) {
+                console.log("setting draw..");
+                this.setDraw();
               }
-              console.log("setting draw..");
-              this.setDraw();
             }
           }
 
@@ -587,6 +587,7 @@ class InGame extends Component {
       .onSnapshot(snapShot => {
         snapShot.docChanges().forEach(change => {
           if (change.type === "added") {
+            this.setState({ taggerHasTaggedSomeone: true });
             const player = change.doc.data();
             this.checkForTaggedPlayers(player);
           }
