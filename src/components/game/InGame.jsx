@@ -158,7 +158,7 @@ class InGame extends Component {
             .openPopup();
 
           setTimeout(() => {
-            if (!this.state.finished) {
+            if (!this.state.finished && marker) {
               map.removeLayer(marker);
             }
           }, 5000);
@@ -229,7 +229,7 @@ class InGame extends Component {
         .bindPopup(`player used sonar`)
         .openPopup();
       setTimeout(() => {
-        if (!this.state.finished) {
+        if (!this.state.finished && marker) {
           console.log("removing just sonard player marker");
           map.removeLayer(marker);
         }
@@ -590,6 +590,10 @@ class InGame extends Component {
             this.setState({ taggerHasTaggedSomeone: true });
             const player = change.doc.data();
             this.checkForTaggedPlayers(player);
+
+            if (player.id === this.props.user.UID) {
+              this.checkIfImTagged(player);
+            }
           }
           if (change.type === "modified") {
           }
@@ -612,7 +616,7 @@ class InGame extends Component {
       .bindPopup(`${player.name} was tagged`)
       .openPopup();
     setTimeout(() => {
-      if (!this.state.finished) {
+      if (!this.state.finished && marker) {
         console.log("removing just tagged player marker");
         map.removeLayer(marker);
       }
@@ -630,7 +634,6 @@ class InGame extends Component {
           if (change.type === "modified") {
             const player = change.doc.data();
             this.checkForSonars(player);
-            this.checkIfImTagged(player);
           }
           if (change.type === "removed") {
             console.log("removed", change.doc.data());
@@ -689,7 +692,7 @@ class InGame extends Component {
           marker: marker
         });
         setTimeout(() => {
-          if (!this.state.finished) {
+          if (!this.state.finished && marker) {
             console.log("removing just sonar'd player marker");
             map.removeLayer(marker);
           }
