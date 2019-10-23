@@ -21,6 +21,7 @@ let sonarActivePlayers = [];
 let DBgetMatch = null;
 let DBwatchAllPlayers = null;
 let DBwatchTaggedPlayers = null;
+let DBwatchPlayersJoin = null;
 
 //timers
 let initTimerId = null;
@@ -70,6 +71,7 @@ class InGame extends Component {
     }
   }
   handlePlayerQuit = () => {
+    console.log("quitting", this.state.remainingPlayers.length);
     if (this.state.remainingPlayers.length === 1) {
       this.endGame();
     } else {
@@ -211,7 +213,9 @@ class InGame extends Component {
           // check if game is in waiting phase
           if (doc.data().waiting === true) {
             this.setState({ waiting: true });
-            this.watchAllPlayers();
+            if (doc.data().admin.id === this.props.user.UID) {
+              this.watchPlayersJoin();
+            }
           } else if (doc.data().waiting === false) {
             this.setState({ waiting: false });
           }
@@ -228,6 +232,7 @@ class InGame extends Component {
           if (doc.data().playing) {
             clearInterval(initTimerId);
             this.setState({ playing: true });
+            this.watchAllPlayers();
             this.watchTaggedPlayers();
           } else if (doc.data().playing === false) {
             this.setState({ playing: false });
@@ -270,6 +275,7 @@ class InGame extends Component {
             });
 
             if (doc.data().quitter === doc.data().tagger.name) {
+              console.log("setting draw..");
               this.setDraw();
             }
           }
@@ -278,9 +284,30 @@ class InGame extends Component {
         }
       });
   };
+  watchPlayersJoin = () => {
+    DBwatchPlayersJoin = geoDb
+      .collection("matches")
+      .doc(this.props.matchId)
+      .collection("players")
+      .onSnapshot(snap => {
+        const size = snap.size; // will return the collection size
+        console.log("player joined, total = ", size);
+        if (size > 1) {
+          this.setState({
+            playersJoined: size,
+            showPlayBtn: true
+          });
+        }
+      });
+
+    if (this.state.playing) {
+      DBwatchPlayersJoin && DBwatchPlayersJoin();
+      DBwatchPlayersJoin = null;
+    }
+  };
   setDraw = () => {
     const players = this.state.remainingPlayers;
-    console.log("draw winners", players);
+    console.log("draw, winners = ", players);
     db.collection("finishedMatches")
       .doc(this.props.matchId)
       .get()
@@ -555,17 +582,15 @@ class InGame extends Component {
       .collection("players")
       .onSnapshot(querySnapshot => {
         querySnapshot.docChanges().forEach(change => {
-          if (this.state.playing) {
-            if (change.type === "added") {
-            }
-            if (change.type === "modified") {
-              const player = change.doc.data();
-              this.checkForSonars(player);
-              this.checkIfImTagged(player);
-            }
-            if (change.type === "removed") {
-              console.log("removed", change.doc.data());
-            }
+          if (change.type === "added") {
+          }
+          if (change.type === "modified") {
+            const player = change.doc.data();
+            this.checkForSonars(player);
+            this.checkIfImTagged(player);
+          }
+          if (change.type === "removed") {
+            console.log("removed", change.doc.data());
           }
         });
 
@@ -574,30 +599,18 @@ class InGame extends Component {
           players.push(doc.data());
         });
 
-        // show play btn if more then 1 player in game
-        if (players.length > 1) {
-          this.setState({
-            showPlayBtn: true
-          });
-        }
+        //work out remaining players
+        const remainingPlayers = players.filter(p => !p.tagger);
+        console.log("remaining", remainingPlayers);
+        this.setState({
+          remainingPlayers
+        });
 
-        if (this.state.playing) {
-          //work out remaining players
-          const remainingPlayers = players.filter(p => !p.tagger);
-          this.setState({
-            remainingPlayers
-          });
-          console.log("remaining", remainingPlayers.length);
-          if (this.state.remainingPlayers.length === 1) {
-            this.endGame();
-          }
+        // //watch: check for winner
+        this.checkForWinner(players);
 
-          // //watch: check for winner
-          this.checkForWinner(players);
-
-          // //watch: check if all players tagged
-          this.checkIfAllPlayersAreTagged(players);
-        }
+        // //watch: check if all players tagged
+        this.checkIfAllPlayersAreTagged(players);
       });
   };
   checkIfImTagged = player => {
@@ -667,6 +680,7 @@ class InGame extends Component {
   };
   checkIfAllPlayersAreTagged = players => {
     const allPlayersTaggged = players.every(player => player.tagger);
+    console.log("allPlayersTaggged", allPlayersTaggged);
 
     if (allPlayersTaggged) {
       geoDb
@@ -721,12 +735,15 @@ class InGame extends Component {
     DBwatchAllPlayers && DBwatchAllPlayers();
     DBwatchTaggedPlayers && DBwatchTaggedPlayers();
     DBgetMatch && DBgetMatch();
+    DBwatchPlayersJoin && DBwatchPlayersJoin();
 
     map = null;
     thisUser = null;
     DBgetMatch = null;
     DBwatchAllPlayers = null;
     DBwatchTaggedPlayers = null;
+    DBwatchPlayersJoin = null;
+
     initTimerId = null;
     gameTimerId = null;
 
