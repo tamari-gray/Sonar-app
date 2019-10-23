@@ -27,3 +27,20 @@ firebase.initializeApp(tamarimon97FirebaseConfig);
 export const auth = firebase.auth();
 export const db = firebase.firestore();
 export const geoDb = new GeoFirestore(db);
+
+export function matchDbRef(matchId) {
+  return geoDb.collection("matches").doc(matchId);
+}
+export function playersDbRef(matchId) {
+  return geoDb
+    .collection("matches")
+    .doc(matchId)
+    .collection("players");
+}
+export function thisUserDbRef(matchId, userId) {
+  return geoDb
+    .collection("matches")
+    .doc(matchId)
+    .collection("players")
+    .doc(userId);
+}
