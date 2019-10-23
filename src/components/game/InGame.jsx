@@ -119,8 +119,8 @@ class InGame extends Component {
       })
         .addTo(map)
         .bindPopup(`you've tagged ${player.name}`)
-        .openPopup()
-        .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+        .openPopup();
+      map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
       markers.push(marker);
     });
     let timer = 3;
@@ -156,8 +156,8 @@ class InGame extends Component {
           })
             .addTo(map)
             .bindPopup("Tagger")
-            .openPopup()
-            .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+            .openPopup();
+          map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
           setTimeout(() => {
             if (!this.state.finished && marker) {
               map.removeLayer(marker);
@@ -228,8 +228,8 @@ class InGame extends Component {
       })
         .addTo(map)
         .bindPopup(`player used sonar`)
-        .openPopup()
-        .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+        .openPopup();
+      map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
       setTimeout(() => {
         if (!this.state.finished && marker) {
           console.log("removing just sonard player marker");
@@ -434,9 +434,8 @@ class InGame extends Component {
       maxZoomLevel: 22,
       maxNativeZoom: 22,
       zoomControl: true
-    })
-      .fitWorld()
-      .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+    }).fitWorld();
+    map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       detectRetina: true,
@@ -469,8 +468,8 @@ class InGame extends Component {
         })
           .addTo(map)
           .bindPopup(this.props.user.username)
-          .openPopup()
-          .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+          .openPopup();
+        map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
       } else if (thisUser) {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng);
@@ -617,8 +616,8 @@ class InGame extends Component {
     })
       .addTo(map)
       .bindPopup(`${player.name} was tagged`)
-      .openPopup()
-      .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+      .openPopup();
+    map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
     setTimeout(() => {
       if (!this.state.finished && marker) {
         console.log("removing just tagged player marker");
@@ -690,8 +689,8 @@ class InGame extends Component {
         })
           .addTo(map)
           .bindPopup(`${player.name} used their sonar`)
-          .openPopup()
-          .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+          .openPopup();
+        map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
         sonarActivePlayers.push({
           id: player.id,
           marker: marker
