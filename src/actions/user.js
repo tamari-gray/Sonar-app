@@ -6,11 +6,10 @@ export const REMOVE_USER = "REMOVE_USER";
 
 export function getUser(userId) {
   return dispatch => {
-    const docRef = db.collection("users").doc(userId);
-
-    docRef
+    db.collection("users")
+      .doc(userId)
       .get()
-      .then(function(doc) {
+      .then(doc => {
         if (doc.exists) {
           dispatch({
             type: GET_USER_INFO,
