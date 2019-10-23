@@ -28,19 +28,38 @@ export const auth = firebase.auth();
 export const db = firebase.firestore();
 export const geoDb = new GeoFirestore(db);
 
-export function matchDbRef(matchId) {
+export function matchRef(matchId) {
   return geoDb.collection("matches").doc(matchId);
 }
-export function playersDbRef(matchId) {
-  return geoDb
-    .collection("matches")
-    .doc(matchId)
-    .collection("players");
+
+export function finishedMatchRef(matchId) {
+  return geoDb.collection("finishedMatches").doc(matchId);
 }
-export function thisUserDbRef(matchId, userId) {
+
+export function thisUserRef(matchId, userId) {
   return geoDb
     .collection("matches")
     .doc(matchId)
     .collection("players")
     .doc(userId);
+}
+export function playersRef(matchId) {
+  return geoDb
+    .collection("matches")
+    .doc(matchId)
+    .collection("players");
+}
+
+export function sonardPlayersRef(matchId) {
+  return geoDb
+    .collection("matches")
+    .doc(matchId)
+    .collection("sonardPlayers");
+}
+
+export function taggedPlayersRef(matchId) {
+  return geoDb
+    .collection("matches")
+    .doc(this.props.matchId)
+    .collection("taggedPlayers");
 }

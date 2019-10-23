@@ -5,7 +5,14 @@ import { Box, Button } from "grommet";
 import { Close } from "grommet-icons";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { db, geoDb } from "../../firebase";
+import {
+  thisUserRef,
+  matchRef,
+  playersRef,
+  sonardPlayersRef,
+  taggedPlayersRef,
+  finishedMatchRef
+} from "../../firebase";
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
 
@@ -74,18 +81,12 @@ class InGame extends Component {
     if (this.state.remainingPlayers.length === 1) {
       this.endGame();
     } else {
-      geoDb
-        .collection("matches")
-        .doc(this.props.matchId)
-        .collection("players")
-        .doc(this.props.user.UID)
+      thisUserRef(this.props.matchId, this.props.user.UID)
         .delete()
         .then(() => {
           this.setState({ quit: true });
           console.log("succesfully left game");
-          geoDb
-            .collection("matches")
-            .doc(this.props.matchId)
+          matchRef
             .update({
               quitter: this.props.user.username
             })
@@ -135,10 +136,7 @@ class InGame extends Component {
   };
   sendSonar = () => {
     // get all players from db ONCE
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
+    playersRef(this.props.matchId)
       .where("tagger", "==", true)
       .get()
       .then(querySnapshot => {
@@ -166,10 +164,7 @@ class InGame extends Component {
       })
       .then(() => {
         // notify taggers i used sonar
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId)
-          .collection("sonardPlayers")
+        sonardPlayersRef(this.props.matchId)
           .doc(this.props.user.UID)
           .set({
             name: this.props.user.username,
@@ -179,10 +174,7 @@ class InGame extends Component {
           .then(() => {
             console.log("added player to sonard players coll");
             // setTimeout(() => {
-            geoDb
-              .collection("matches")
-              .doc(this.props.matchId)
-              .collection("sonardPlayers")
+            sonardPlayersRef(this.props.matchId)
               .doc(this.props.user.UID)
               .delete()
               .then(() => console.log(`removed player from sonard coll`))
@@ -197,11 +189,8 @@ class InGame extends Component {
       });
   };
   watchForSonardPlayers = () => {
-    DBwatchTaggedPlayers = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("sonardPlayers")
-      .onSnapshot(snapShot => {
+    DBwatchTaggedPlayers = sonardPlayersRef(this.props.matchId).onSnapshot(
+      snapShot => {
         snapShot.docChanges().forEach(change => {
           if (change.type === "added") {
             const player = change.doc.data();
@@ -212,7 +201,8 @@ class InGame extends Component {
           if (change.type === "removed") {
           }
         });
-      });
+      }
+    );
   };
   checkForSonardPlayers = player => {
     if (this.state.imTagger) {
@@ -238,108 +228,101 @@ class InGame extends Component {
     }
   };
   getMatch = () => {
-    DBgetMatch = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .onSnapshot(doc => {
-        if (doc.exists) {
-          // check if user is admin
-          if (doc.data().admin.id === this.props.user.UID) {
-            this.setState({ admin: doc.data().admin });
-          }
-
-          // check if game is in waiting phase
-          if (doc.data().waiting === true) {
-            this.setState({ waiting: true });
-            if (doc.data().admin.id === this.props.user.UID) {
-              this.watchPlayersJoin();
-            }
-          } else if (doc.data().waiting === false) {
-            this.setState({ waiting: false });
-          }
-
-          // check if game is initialising
-          if (doc.data().initialising) {
-            this.setState({ initialising: true });
-            this.startInitialiseTimer();
-          } else if (doc.data().initialising === false) {
-            this.setState({ initialising: false });
-          }
-
-          // check if game is in play
-          if (doc.data().playing) {
-            clearInterval(initTimerId);
-            this.setState({ playing: true });
-            this.watchAllPlayers();
-            this.watchTaggedPlayers();
-            this.watchForSonardPlayers();
-          } else if (doc.data().playing === false) {
-            this.setState({ playing: false });
-          }
-
-          // check who le tagger is
-          if (doc.data().tagger) {
-            if (doc.data().tagger.id === this.props.user.UID) {
-              this.setState({
-                imTagger: true,
-                tagger: doc.data().tagger
-              });
-            } else {
-              this.setState({ tagger: doc.data().tagger });
-            }
-          }
-
-          // if game is finished
-          if (doc.data().finished) {
-            clearInterval(gameTimerId);
-            if (this.state.admin) {
-              this.deleteMatch();
-            }
-            this.setState({ finished: true });
-          }
-
-          // if game is finished
-          if (doc.data().quit) {
-            clearInterval(gameTimerId);
-            if (this.state.admin) {
-              this.deleteMatch();
-            }
-            this.setState({ quit: true });
-          }
-
-          if (doc.data().quitter) {
-            console.log("we got a quitter", doc.data().quitter);
-            this.setState({
-              quitter: doc.data().quitter
-            });
-
-            if (doc.data().quitter === doc.data().tagger.name) {
-              if (this.state.taggerHasTaggedSomeone) {
-                console.log("setting draw..");
-                this.setDraw();
-              }
-            }
-          }
-
-          console.log("match data", doc.data());
+    DBgetMatch = matchRef(this.props.matchId).onSnapshot(doc => {
+      if (doc.exists) {
+        // check if user is admin
+        if (doc.data().admin.id === this.props.user.UID) {
+          this.setState({ admin: doc.data().admin });
         }
-      });
+
+        // check if game is in waiting phase
+        if (doc.data().waiting === true) {
+          this.setState({ waiting: true });
+          if (doc.data().admin.id === this.props.user.UID) {
+            this.watchPlayersJoin();
+          }
+        } else if (doc.data().waiting === false) {
+          this.setState({ waiting: false });
+        }
+
+        // check if game is initialising
+        if (doc.data().initialising) {
+          this.setState({ initialising: true });
+          this.startInitialiseTimer();
+        } else if (doc.data().initialising === false) {
+          this.setState({ initialising: false });
+        }
+
+        // check if game is in play
+        if (doc.data().playing) {
+          clearInterval(initTimerId);
+          this.setState({ playing: true });
+          this.watchAllPlayers();
+          this.watchTaggedPlayers();
+          this.watchForSonardPlayers();
+        } else if (doc.data().playing === false) {
+          this.setState({ playing: false });
+        }
+
+        // check who le tagger is
+        if (doc.data().tagger) {
+          if (doc.data().tagger.id === this.props.user.UID) {
+            this.setState({
+              imTagger: true,
+              tagger: doc.data().tagger
+            });
+          } else {
+            this.setState({ tagger: doc.data().tagger });
+          }
+        }
+
+        // if game is finished
+        if (doc.data().finished) {
+          clearInterval(gameTimerId);
+          if (this.state.admin) {
+            this.deleteMatch();
+          }
+          this.setState({ finished: true });
+        }
+
+        // if game is finished
+        if (doc.data().quit) {
+          clearInterval(gameTimerId);
+          if (this.state.admin) {
+            this.deleteMatch();
+          }
+          this.setState({ quit: true });
+        }
+
+        if (doc.data().quitter) {
+          console.log("we got a quitter", doc.data().quitter);
+          this.setState({
+            quitter: doc.data().quitter
+          });
+
+          if (doc.data().quitter === doc.data().tagger.name) {
+            if (this.state.taggerHasTaggedSomeone) {
+              console.log("setting draw..");
+              this.setDraw();
+            }
+          }
+        }
+
+        console.log("match data", doc.data());
+      }
+    });
   };
   watchPlayersJoin = () => {
-    DBwatchPlayersJoin = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
-      .onSnapshot(snap => {
-        const size = snap.size; // will return the collection size
-        console.log("player joined, total = ", size);
-        if (size > 1) {
-          this.setState({
-            playersJoined: size,
-            showPlayBtn: true
-          });
-        }
-      });
+    DBwatchPlayersJoin = playersRef(this.props.matchId).onSnapshot(snap => {
+      const size = snap.size; // will return the collection size
+      console.log("player joined, total = ", size);
+      if (size > 1) {
+        this.setState({
+          playersJoined: size,
+          showPlayBtn: true
+        });
+      }
+    });
 
     if (this.state.playing) {
       DBwatchPlayersJoin && DBwatchPlayersJoin();
@@ -349,13 +332,11 @@ class InGame extends Component {
   setDraw = () => {
     const players = this.state.remainingPlayers;
     console.log("draw, winners = ", players);
-    db.collection("finishedMatches")
-      .doc(this.props.matchId)
+    finishedMatchRef(this.props.matchId)
       .get()
       .then(doc => {
         if (!doc.exists) {
-          db.collection("finishedMatches")
-            .doc(this.props.matchId)
+          finishedMatchRef(this.props.matchId)
             .set({
               draw: players
             })
@@ -370,9 +351,7 @@ class InGame extends Component {
       });
   };
   deleteMatch = () => {
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
+    matchRef(this.props.matchId)
       .delete()
       .then(() => {
         console.log("game successfully deleted!");
@@ -416,9 +395,7 @@ class InGame extends Component {
         this.setState({
           initialisingTimer: 0
         });
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId) // move to playing phase in firebase
+        matchRef(this.props.matchId) // move to playing phase in firebase
           .update({ initialising: false, playing: true })
           .catch(e => console.log(`Error initialising game. ${e}`));
       }
@@ -469,13 +446,9 @@ class InGame extends Component {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng);
       }
-      geoDb
-        .collection("matches")
-        .doc(matchId)
-        .collection("players")
-        .doc(this.props.user.UID)
+      // update users location in DB
+      thisUserRef(this.props.matchId, this.props.user.UID)
         .update({
-          // update users location in DB
           coordinates: pos
         })
         .catch(e => console.log("error adding user to db", e));
@@ -496,10 +469,7 @@ class InGame extends Component {
   chooseTagger = () => {
     let players = [];
     // choose tagger
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
+    playersRef(this.props.matchId)
       .get()
       .then(querySnap => {
         querySnap.forEach(snap => {
@@ -508,16 +478,11 @@ class InGame extends Component {
       })
       .then(() => {
         const tagger = players[Math.floor(Math.random() * players.length)];
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId)
+        matchRef(this.props.matchId)
           .update({ initialising: true, waiting: false, tagger })
           .catch(e => console.log(`Error choosing tagger. ${e}`));
 
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId)
-          .collection("players")
+        playersRef(this.props.matchId)
           .doc(tagger.id)
           .update({ tagger: true })
           .then(() => console.log(` set tagger. ${tagger.name}`))
@@ -530,17 +495,12 @@ class InGame extends Component {
       this.state.myPosition.lng
     ); // this players pos
 
-    const query = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
-      .near({ center, radius: 2.5 });
+    const query = playersRef(this.props.matchId).near({ center, radius: 2.5 });
 
     query.get().then(value => {
       //check if they are last players
       if (query.length === this.state.remainingPlayers.length) {
-        db.collection("finishedMatches")
-          .doc(this.props.matchId)
+        finishedMatchRef(this.props.matchId)
           .set({
             draw: query
           })
@@ -549,21 +509,14 @@ class InGame extends Component {
       } else {
         value.docs.forEach(p => {
           const player = p.data();
-          geoDb
-            .collection("matches")
-            .doc(this.props.matchId)
-            .collection("players")
-            .doc(player.id)
+          thisUserRef(this.props.matchId, this.props.user.UID)
             .update({
               tagger: true,
               sonar: false
             })
             .then(console.log(`updated ${player.name} doc to tagger: true`))
             .catch(e => console.log(`error updating player to tagger ${e}`));
-          geoDb
-            .collection("matches")
-            .doc(this.props.matchId)
-            .collection("taggedPlayers")
+          taggedPlayersRef(this.props.matchId)
             .doc(player.id)
             .set({
               name: player.name,
@@ -577,11 +530,8 @@ class InGame extends Component {
     });
   };
   watchTaggedPlayers = () => {
-    DBwatchTaggedPlayers = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("taggedPlayers")
-      .onSnapshot(snapShot => {
+    DBwatchTaggedPlayers = taggedPlayersRef(this.props.matchId).onSnapshot(
+      snapShot => {
         snapShot.docChanges().forEach(change => {
           if (change.type === "added") {
             this.setState({ taggerHasTaggedSomeone: true });
@@ -598,7 +548,8 @@ class InGame extends Component {
             console.log("removed", change.doc.data());
           }
         });
-      });
+      }
+    );
   };
   checkForTaggedPlayers = player => {
     console.log(player.name + "was tagged");
@@ -621,11 +572,8 @@ class InGame extends Component {
     }, 3000);
   };
   watchAllPlayers = () => {
-    DBwatchAllPlayers = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
-      .onSnapshot(querySnapshot => {
+    DBwatchAllPlayers = playersRef(this.props.matchId).onSnapshot(
+      querySnapshot => {
         querySnapshot.docChanges().forEach(change => {
           if (change.type === "added") {
           }
@@ -655,7 +603,8 @@ class InGame extends Component {
 
         // //watch: check if all players tagged
         this.checkIfAllPlayersAreTagged(players);
-      });
+      }
+    );
   };
   checkIfImTagged = player => {
     if (player.id === this.props.user.UID) {
@@ -671,9 +620,6 @@ class InGame extends Component {
   checkForSonars = player => {
     if (this.state.imTagger) {
       if (player.sonar === true) {
-        // const alreadyActive = sonarActivePlayers.find(p => p.id === player.id);
-        // if (!alreadyActive) {
-        // add marker && add to sonarActivePlayers array ***************
         const pos = [player.coordinates.latitude, player.coordinates.longitude];
         console.log("setting just sonar'd player marker");
         const marker = L.circle(pos, {
@@ -696,16 +642,6 @@ class InGame extends Component {
           }
         }, 3000);
       }
-      // } else if (player.sonar === false) {
-      //   const oldSonar = sonarActivePlayers.filter(p => p.id === player.id);
-      //   const oldMarker = oldSonar[0];
-      //   if (oldMarker) {
-      //     map.removeLayer(oldMarker.marker);
-      //     sonarActivePlayers = sonarActivePlayers.filter(
-      //       p => p.id !== oldMarker.id
-      //     );
-      //   }
-      // }
     }
   };
   checkForWinner = players => {
@@ -714,8 +650,7 @@ class InGame extends Component {
     if (notTagged.length === 1) {
       const winner = notTagged[0];
       console.log("winner:", winner);
-      db.collection("finishedMatches")
-        .doc(this.props.matchId)
+      finishedMatchRef(this.props.matchId)
         .set({
           winner
         })
@@ -730,9 +665,7 @@ class InGame extends Component {
     console.log("allPlayersTaggged", allPlayersTaggged);
 
     if (allPlayersTaggged) {
-      geoDb
-        .collection("matches")
-        .doc(this.props.matchId)
+      matchRef(this.props.matchId)
         .get()
         .then(doc => {
           if (doc.exists) {
@@ -742,16 +675,12 @@ class InGame extends Component {
     }
   };
   endGame = () => {
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
+    matchRef(this.props.matchId)
       .get()
       .then(doc => {
         console.log("ending game");
         if (doc.exists) {
-          geoDb
-            .collection("matches")
-            .doc(this.props.matchId)
+          matchRef(this.props.matchId)
             .update({
               initialising: false,
               waiting: false,
@@ -766,9 +695,7 @@ class InGame extends Component {
       });
   };
   quitGame = () => {
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
+    matchRef(this.props.matchId)
       .update({
         quit: true
       })
