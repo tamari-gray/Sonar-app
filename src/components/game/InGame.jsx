@@ -119,7 +119,8 @@ class InGame extends Component {
       })
         .addTo(map)
         .bindPopup(`you've tagged ${player.name}`)
-        .openPopup();
+        .openPopup()
+        .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
       markers.push(marker);
     });
     let timer = 3;
@@ -155,8 +156,8 @@ class InGame extends Component {
           })
             .addTo(map)
             .bindPopup("Tagger")
-            .openPopup();
-
+            .openPopup()
+            .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
           setTimeout(() => {
             if (!this.state.finished && marker) {
               map.removeLayer(marker);
@@ -227,7 +228,8 @@ class InGame extends Component {
       })
         .addTo(map)
         .bindPopup(`player used sonar`)
-        .openPopup();
+        .openPopup()
+        .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
       setTimeout(() => {
         if (!this.state.finished && marker) {
           console.log("removing just sonard player marker");
@@ -467,7 +469,8 @@ class InGame extends Component {
         })
           .addTo(map)
           .bindPopup(this.props.user.username)
-          .openPopup();
+          .openPopup()
+          .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
       } else if (thisUser) {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng);
@@ -614,7 +617,8 @@ class InGame extends Component {
     })
       .addTo(map)
       .bindPopup(`${player.name} was tagged`)
-      .openPopup();
+      .openPopup()
+      .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
     setTimeout(() => {
       if (!this.state.finished && marker) {
         console.log("removing just tagged player marker");
@@ -686,7 +690,8 @@ class InGame extends Component {
         })
           .addTo(map)
           .bindPopup(`${player.name} used their sonar`)
-          .openPopup();
+          .openPopup()
+          .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
         sonarActivePlayers.push({
           id: player.id,
           marker: marker
