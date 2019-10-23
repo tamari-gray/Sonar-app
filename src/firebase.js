@@ -3,7 +3,17 @@ import "firebase/auth";
 import "firebase/firestore";
 import { GeoFirestore } from "geofirestore";
 
-const firebaseConfig = {
+// const firebaseConfig = {
+//   apiKey: "AIzaSyCUu8zzfotKZNvfQcXRQm2LMX7xwMRCyRg",
+//   authDomain: "sonar-2664d.firebaseapp.com",
+//   databaseURL: "https://sonar-2664d.firebaseio.com",
+//   projectId: "sonar-2664d",
+//   storageBucket: "sonar-2664d.appspot.com",
+//   messagingSenderId: "85025589952",
+//   appId: "1:85025589952:web:772471903454f716"
+// };
+
+const tamarimon97FirebaseConfig = {
   apiKey: "AIzaSyCUu8zzfotKZNvfQcXRQm2LMX7xwMRCyRg",
   authDomain: "sonar-2664d.firebaseapp.com",
   databaseURL: "https://sonar-2664d.firebaseio.com",
@@ -12,7 +22,7 @@ const firebaseConfig = {
   messagingSenderId: "85025589952",
   appId: "1:85025589952:web:772471903454f716"
 };
-firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(tamarimon97FirebaseConfig);
 
 export const auth = firebase.auth();
 export const db = firebase.firestore();
