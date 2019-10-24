@@ -60,6 +60,6 @@ export function sonardPlayersRef(matchId) {
 export function taggedPlayersRef(matchId) {
   return geoDb
     .collection("matches")
-    .doc(this.props.matchId)
+    .doc(matchId)
     .collection("taggedPlayers");
 }
