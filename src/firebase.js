@@ -63,3 +63,14 @@ export function taggedPlayersRef(matchId) {
     .doc(matchId)
     .collection("taggedPlayers");
 }
+
+// check if doc exists
+export function docExists(docRef) {
+  let exists = false
+  docRef.get().then((doc) => {
+    if(doc.exists) exists = true
+  })
+  .catch(e => `error, document doesnt exist`)
+
+  return exists
+}
