@@ -2,9 +2,17 @@ import * as firebase from "firebase/app";
 import React, { Component } from "react";
 import { connect } from "react-redux";
 import { Box, Button } from "grommet";
+import { Close } from "grommet-icons";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { db, geoDb } from "../../firebase";
+import {
+  thisUserRef,
+  matchRef,
+  playersRef,
+  sonardPlayersRef,
+  taggedPlayersRef,
+  finishedMatchRef
+} from "../../firebase";
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
 
@@ -13,13 +21,13 @@ let thisUser = null;
 
 // markers
 let taggers = [];
-let taggedPlayersMarkers = [];
 let sonarActivePlayers = [];
 
 // firebase listeners
 let DBgetMatch = null;
 let DBwatchAllPlayers = null;
 let DBwatchTaggedPlayers = null;
+let DBwatchPlayersJoin = null;
 
 //timers
 let initTimerId = null;
@@ -55,11 +63,47 @@ class InGame extends Component {
     remainingPlayers: []
   };
   componentDidMount() {
+    window.addEventListener("beforeunload", () => {
+      setTimeout(() => {
+        console.log(
+          "player hasnt been active for more then 10 seconds => removed from game"
+        );
+        this.handlePlayerQuit();
+      }, 10000);
+    });
     if (this.props) {
       this.initMap();
       this.getMatch(); // toggle play btn
     }
   }
+  handlePlayerQuit = () => {
+    console.log("quitting", this.state.remainingPlayers.length);
+    if (this.state.remainingPlayers.length === 1) {
+      this.endGame();
+    } else {
+      thisUserRef(this.props.matchId, this.props.user.UID)
+        .delete()
+        .then(() => {
+          this.setState({ quit: true });
+          console.log("succesfully left game");
+          matchRef
+            .update({
+              quitter: this.props.user.username
+            })
+            .then(() => {
+              console.log(
+                `updated game that ${this.props.user.username} has quit`
+              );
+            })
+            .catch(e =>
+              console.log(
+                `error updating game that ${this.props.user.username} has quit`
+              )
+            );
+        })
+        .catch(e => console.log(`error removing player from match `));
+    }
+  };
   putPlayersMarkersOnMap = players => {
     const markers = [];
     players.forEach(player => {
@@ -92,20 +136,10 @@ class InGame extends Component {
   };
   sendSonar = () => {
     // get all players from db ONCE
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
+    playersRef(this.props.matchId)
       .where("tagger", "==", true)
       .get()
       .then(querySnapshot => {
-        //remove prev sonar
-        taggers.forEach(tagger => {
-          map.removeLayer(tagger);
-        });
-
-        //put taggers on map
-        const newTaggers = [];
         querySnapshot.forEach(doc => {
           let pos = [
             doc.data().coordinates.latitude,
@@ -120,115 +154,204 @@ class InGame extends Component {
             .addTo(map)
             .bindPopup("Tagger")
             .openPopup();
-          newTaggers.push(marker);
+          map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+          setTimeout(() => {
+            if (!this.state.finished && marker) {
+              map.removeLayer(marker);
+            }
+          }, 5000);
         });
-
-        // set new taggers
-        taggers = newTaggers;
       })
       .then(() => {
         // notify taggers i used sonar
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId)
-          .collection("players")
+        sonardPlayersRef(this.props.matchId)
           .doc(this.props.user.UID)
-          .update({
-            sonar: false
+          .set({
+            name: this.props.user.username,
+            id: this.props.user.UID,
+            coordinates: new firebase.firestore.GeoPoint(1, 0)
           })
           .then(() => {
-            console.log("set sonar to false to remove prev marker");
-          })
-          .then(() => {
-            geoDb
-              .collection("matches")
-              .doc(this.props.matchId)
-              .collection("players")
+            console.log("added player to sonard players coll");
+            // setTimeout(() => {
+            sonardPlayersRef(this.props.matchId)
               .doc(this.props.user.UID)
-              .update({
-                sonar: true
-              })
-              .then(() => console.log("updated sonar usage"))
-              .catch(e => console.log(`error updating sonar usage, ${e}`));
+              .delete()
+              .then(() => console.log(`removed player from sonard coll`))
+              .catch(e =>
+                console.log(`error deleting player from sonard coll ${e}`)
+              );
+            // }, 5000);
           })
-          .then(() => console.log("updated sonar usage"))
-          .catch(e => console.log(`error updating sonar usage, ${e}`));
+          .catch(e =>
+            console.log(`error adding player to sonard players coll ${e}`)
+          );
       });
   };
+  watchForSonardPlayers = () => {
+    DBwatchTaggedPlayers = sonardPlayersRef(this.props.matchId).onSnapshot(
+      snapShot => {
+        snapShot.docChanges().forEach(change => {
+          if (change.type === "added") {
+            const player = change.doc.data();
+            this.checkForSonardPlayers(player);
+          }
+          if (change.type === "modified") {
+          }
+          if (change.type === "removed") {
+          }
+        });
+      }
+    );
+  };
+  checkForSonardPlayers = player => {
+    if (this.state.imTagger) {
+      console.log(player.name + "used sonar");
+      let pos = [player.coordinates.latitude, player.coordinates.longitude];
+      const marker = L.circle(pos, {
+        color: "green",
+        fillColor: "green",
+        fillOpacity: 0.5,
+        radius: 2.5
+      })
+        .addTo(map)
+        .bindPopup(`player used sonar`)
+        .openPopup();
+      console.log("set just sonard player marker");
+      setTimeout(() => {
+        if (!this.state.finished && marker) {
+          console.log("removing just sonard player marker");
+          map.removeLayer(marker);
+          map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+        }
+      }, 5000);
+    }
+  };
   getMatch = () => {
-    DBgetMatch = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .onSnapshot(doc => {
-        if (doc.exists) {
-          // check if user is admin
+    DBgetMatch = matchRef(this.props.matchId).onSnapshot(doc => {
+      if (doc.exists) {
+        // check if user is admin
+        if (doc.data().admin.id === this.props.user.UID) {
+          this.setState({ admin: doc.data().admin });
+        }
+
+        // check if game is in waiting phase
+        if (doc.data().waiting === true) {
+          this.setState({ waiting: true });
           if (doc.data().admin.id === this.props.user.UID) {
-            this.setState({ admin: doc.data().admin });
+            this.watchPlayersJoin();
           }
+        } else if (doc.data().waiting === false) {
+          this.setState({ waiting: false });
+        }
 
-          // check if game is in waiting phase
-          if (doc.data().waiting === true) {
-            this.setState({ waiting: true });
-            this.watchAllPlayers();
-          } else if (doc.data().waiting === false) {
-            this.setState({ waiting: false });
+        // check if game is initialising
+        if (doc.data().initialising) {
+          this.setState({ initialising: true });
+          this.startInitialiseTimer();
+        } else if (doc.data().initialising === false) {
+          this.setState({ initialising: false });
+        }
+
+        // check if game is in play
+        if (doc.data().playing) {
+          clearInterval(initTimerId);
+          this.setState({ playing: true });
+          this.watchAllPlayers();
+          this.watchTaggedPlayers();
+          this.watchForSonardPlayers();
+        } else if (doc.data().playing === false) {
+          this.setState({ playing: false });
+        }
+
+        // check who le tagger is
+        if (doc.data().tagger) {
+          if (doc.data().tagger.id === this.props.user.UID) {
+            this.setState({
+              imTagger: true,
+              tagger: doc.data().tagger
+            });
+          } else {
+            this.setState({ tagger: doc.data().tagger });
           }
+        }
 
-          // check if game is initialising
-          if (doc.data().initialising) {
-            this.setState({ initialising: true });
-            this.startInitialiseTimer();
-          } else if (doc.data().initialising === false) {
-            this.setState({ initialising: false });
+        // if game is finished
+        if (doc.data().finished) {
+          clearInterval(gameTimerId);
+          if (this.state.admin) {
+            this.deleteMatch();
           }
+          this.setState({ finished: true });
+        }
 
-          // check if game is in play
-          if (doc.data().playing) {
-            clearInterval(initTimerId);
-            this.setState({ playing: true });
-            this.watchTaggedPlayers();
-          } else if (doc.data().playing === false) {
-            this.setState({ playing: false });
+        // if game is finished
+        if (doc.data().quit) {
+          clearInterval(gameTimerId);
+          if (this.state.admin) {
+            this.deleteMatch();
           }
+          this.setState({ quit: true });
+        }
 
-          // check who le tagger is
-          if (doc.data().tagger) {
-            if (doc.data().tagger.id === this.props.user.UID) {
-              this.setState({
-                imTagger: true,
-                tagger: doc.data().tagger
-              });
-            } else {
-              this.setState({ tagger: doc.data().tagger });
+        if (doc.data().quitter) {
+          console.log("we got a quitter", doc.data().quitter);
+          this.setState({
+            quitter: doc.data().quitter
+          });
+
+          if (doc.data().quitter === doc.data().tagger.name) {
+            if (this.state.taggerHasTaggedSomeone) {
+              console.log("setting draw..");
+              this.setDraw();
             }
           }
+        }
 
-          // if game is finished
-          if (doc.data().finished) {
-            clearInterval(gameTimerId);
-            if (this.state.admin) {
-              this.deleteMatch();
-            }
-            this.setState({ finished: true });
-          }
+        console.log("match data", doc.data());
+      }
+    });
+  };
+  watchPlayersJoin = () => {
+    DBwatchPlayersJoin = playersRef(this.props.matchId).onSnapshot(snap => {
+      const size = snap.size; // will return the collection size
+      console.log("player joined, total = ", size);
+      if (size > 1) {
+        this.setState({
+          playersJoined: size,
+          showPlayBtn: true
+        });
+      }
+    });
 
-          // if game is finished
-          if (doc.data().quit) {
-            clearInterval(gameTimerId);
-            if (this.state.admin) {
-              this.deleteMatch();
-            }
-            this.setState({ quit: true });
-          }
-
-          console.log("match data", doc.data());
+    if (this.state.playing) {
+      DBwatchPlayersJoin && DBwatchPlayersJoin();
+      DBwatchPlayersJoin = null;
+    }
+  };
+  setDraw = () => {
+    const players = this.state.remainingPlayers;
+    console.log("draw, winners = ", players);
+    finishedMatchRef(this.props.matchId)
+      .get()
+      .then(doc => {
+        if (!doc.exists) {
+          finishedMatchRef(this.props.matchId)
+            .set({
+              draw: players
+            })
+            .then(() => {
+              console.log("game has ended in a draw");
+              this.endGame();
+            })
+            .catch(e => {
+              console.log("error ending game as draw: ", e);
+            });
         }
       });
   };
   deleteMatch = () => {
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
+    matchRef(this.props.matchId)
       .delete()
       .then(() => {
         console.log("game successfully deleted!");
@@ -272,9 +395,7 @@ class InGame extends Component {
         this.setState({
           initialisingTimer: 0
         });
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId) // move to playing phase in firebase
+        matchRef(this.props.matchId) // move to playing phase in firebase
           .update({ initialising: false, playing: true })
           .catch(e => console.log(`Error initialising game. ${e}`));
       }
@@ -286,9 +407,8 @@ class InGame extends Component {
       maxZoomLevel: 22,
       maxNativeZoom: 22,
       zoomControl: true
-    })
-      .fitWorld()
-      .setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+    }).fitWorld();
+    map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       detectRetina: true,
@@ -326,13 +446,9 @@ class InGame extends Component {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng);
       }
-      geoDb
-        .collection("matches")
-        .doc(matchId)
-        .collection("players")
-        .doc(this.props.user.UID)
+      // update users location in DB
+      thisUserRef(this.props.matchId, this.props.user.UID)
         .update({
-          // update users location in DB
           coordinates: pos
         })
         .catch(e => console.log("error adding user to db", e));
@@ -353,10 +469,7 @@ class InGame extends Component {
   chooseTagger = () => {
     let players = [];
     // choose tagger
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
+    playersRef(this.props.matchId)
       .get()
       .then(querySnap => {
         querySnap.forEach(snap => {
@@ -365,16 +478,11 @@ class InGame extends Component {
       })
       .then(() => {
         const tagger = players[Math.floor(Math.random() * players.length)];
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId)
+        matchRef(this.props.matchId)
           .update({ initialising: true, waiting: false, tagger })
           .catch(e => console.log(`Error choosing tagger. ${e}`));
 
-        geoDb
-          .collection("matches")
-          .doc(this.props.matchId)
-          .collection("players")
+        playersRef(this.props.matchId)
           .doc(tagger.id)
           .update({ tagger: true })
           .then(() => console.log(` set tagger. ${tagger.name}`))
@@ -387,17 +495,12 @@ class InGame extends Component {
       this.state.myPosition.lng
     ); // this players pos
 
-    const query = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
-      .near({ center, radius: 2.5 });
+    const query = playersRef(this.props.matchId).near({ center, radius: 2.5 });
 
     query.get().then(value => {
       //check if they are last players
       if (query.length === this.state.remainingPlayers.length) {
-        db.collection("finishedMatches")
-          .doc(this.props.matchId)
+        finishedMatchRef(this.props.matchId)
           .set({
             draw: query
           })
@@ -406,21 +509,14 @@ class InGame extends Component {
       } else {
         value.docs.forEach(p => {
           const player = p.data();
-          geoDb
-            .collection("matches")
-            .doc(this.props.matchId)
-            .collection("players")
-            .doc(player.id)
+          thisUserRef(this.props.matchId, this.props.user.UID)
             .update({
               tagger: true,
               sonar: false
             })
             .then(console.log(`updated ${player.name} doc to tagger: true`))
             .catch(e => console.log(`error updating player to tagger ${e}`));
-          geoDb
-            .collection("matches")
-            .doc(this.props.matchId)
-            .collection("taggedPlayers")
+          taggedPlayersRef(this.props.matchId)
             .doc(player.id)
             .set({
               name: player.name,
@@ -434,16 +530,17 @@ class InGame extends Component {
     });
   };
   watchTaggedPlayers = () => {
-    DBwatchTaggedPlayers = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("taggedPlayers")
-      .onSnapshot(snapShot => {
+    DBwatchTaggedPlayers = taggedPlayersRef(this.props.matchId).onSnapshot(
+      snapShot => {
         snapShot.docChanges().forEach(change => {
           if (change.type === "added") {
+            this.setState({ taggerHasTaggedSomeone: true });
             const player = change.doc.data();
-            console.log("yeet");
             this.checkForTaggedPlayers(player);
+
+            if (player.id === this.props.user.UID) {
+              this.checkIfImTagged(player);
+            }
           }
           if (change.type === "modified") {
           }
@@ -451,7 +548,8 @@ class InGame extends Component {
             console.log("removed", change.doc.data());
           }
         });
-      });
+      }
+    );
   };
   checkForTaggedPlayers = player => {
     console.log(player.name + "was tagged");
@@ -466,30 +564,25 @@ class InGame extends Component {
       .bindPopup(`${player.name} was tagged`)
       .openPopup();
     setTimeout(() => {
-      if (!this.state.finished) {
+      if (!this.state.finished && marker) {
         console.log("removing just tagged player marker");
         map.removeLayer(marker);
+        map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
       }
     }, 3000);
   };
   watchAllPlayers = () => {
-    DBwatchAllPlayers = geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
-      .collection("players")
-      .onSnapshot(querySnapshot => {
+    DBwatchAllPlayers = playersRef(this.props.matchId).onSnapshot(
+      querySnapshot => {
         querySnapshot.docChanges().forEach(change => {
-          if (this.state.playing) {
-            if (change.type === "added") {
-            }
-            if (change.type === "modified") {
-              const player = change.doc.data();
-              this.checkForSonars(player);
-              this.checkIfImTagged(player);
-            }
-            if (change.type === "removed") {
-              console.log("removed", change.doc.data());
-            }
+          if (change.type === "added") {
+          }
+          if (change.type === "modified") {
+            const player = change.doc.data();
+            this.checkForSonars(player);
+          }
+          if (change.type === "removed") {
+            console.log("removed", change.doc.data());
           }
         });
 
@@ -498,27 +591,20 @@ class InGame extends Component {
           players.push(doc.data());
         });
 
-        // show play btn if more then 1 player in game
-        if (players.length > 1) {
-          this.setState({
-            showPlayBtn: true
-          });
-        }
+        //work out remaining players
+        const remainingPlayers = players.filter(p => !p.tagger);
+        console.log("remaining", remainingPlayers);
+        this.setState({
+          remainingPlayers
+        });
 
-        if (this.state.playing) {
-          //work out remaining players
-          const remainingPlayers = players.filter(p => !p.tagger);
-          this.setState({
-            remainingPlayers
-          });
+        // //watch: check for winner
+        this.checkForWinner(players);
 
-          // //watch: check for winner
-          this.checkForWinner(players);
-
-          // //watch: check if all players tagged
-          this.checkIfAllPlayersAreTagged(players);
-        }
-      });
+        // //watch: check if all players tagged
+        this.checkIfAllPlayersAreTagged(players);
+      }
+    );
   };
   checkIfImTagged = player => {
     if (player.id === this.props.user.UID) {
@@ -534,37 +620,27 @@ class InGame extends Component {
   checkForSonars = player => {
     if (this.state.imTagger) {
       if (player.sonar === true) {
-        const alreadyActive = sonarActivePlayers.find(p => p.id === player.id);
-        if (!alreadyActive) {
-          // add marker && add to sonarActivePlayers array ***************
-          const pos = [
-            player.coordinates.latitude,
-            player.coordinates.longitude
-          ];
-          console.log("player");
-          const marker = L.circle(pos, {
-            color: "green",
-            fillColor: "green",
-            fillOpacity: 0.5,
-            radius: 2.5
-          })
-            .addTo(map)
-            .bindPopup(`${player.name} used their sonar`)
-            .openPopup();
-          sonarActivePlayers.push({
-            id: player.id,
-            marker: marker
-          });
-        }
-      } else if (player.sonar === false) {
-        const oldSonar = sonarActivePlayers.filter(p => p.id === player.id);
-        const oldMarker = oldSonar[0];
-        if (oldMarker) {
-          map.removeLayer(oldMarker.marker);
-          sonarActivePlayers = sonarActivePlayers.filter(
-            p => p.id !== oldMarker.id
-          );
-        }
+        const pos = [player.coordinates.latitude, player.coordinates.longitude];
+        console.log("setting just sonar'd player marker");
+        const marker = L.circle(pos, {
+          color: "green",
+          fillColor: "green",
+          fillOpacity: 0.5,
+          radius: 2.5
+        })
+          .addTo(map)
+          .bindPopup(`${player.name} used their sonar`)
+          .openPopup();
+        sonarActivePlayers.push({
+          id: player.id,
+          marker: marker
+        });
+        setTimeout(() => {
+          if (!this.state.finished && marker) {
+            console.log("removing just sonar'd player marker");
+            map.removeLayer(marker);
+          }
+        }, 3000);
       }
     }
   };
@@ -574,8 +650,7 @@ class InGame extends Component {
     if (notTagged.length === 1) {
       const winner = notTagged[0];
       console.log("winner:", winner);
-      db.collection("finishedMatches")
-        .doc(this.props.matchId)
+      finishedMatchRef(this.props.matchId)
         .set({
           winner
         })
@@ -587,11 +662,10 @@ class InGame extends Component {
   };
   checkIfAllPlayersAreTagged = players => {
     const allPlayersTaggged = players.every(player => player.tagger);
+    console.log("allPlayersTaggged", allPlayersTaggged);
 
     if (allPlayersTaggged) {
-      geoDb
-        .collection("matches")
-        .doc(this.props.matchId)
+      matchRef(this.props.matchId)
         .get()
         .then(doc => {
           if (doc.exists) {
@@ -601,16 +675,12 @@ class InGame extends Component {
     }
   };
   endGame = () => {
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
+    matchRef(this.props.matchId)
       .get()
       .then(doc => {
         console.log("ending game");
         if (doc.exists) {
-          geoDb
-            .collection("matches")
-            .doc(this.props.matchId)
+          matchRef(this.props.matchId)
             .update({
               initialising: false,
               waiting: false,
@@ -625,9 +695,7 @@ class InGame extends Component {
       });
   };
   quitGame = () => {
-    geoDb
-      .collection("matches")
-      .doc(this.props.matchId)
+    matchRef(this.props.matchId)
       .update({
         quit: true
       })
@@ -641,14 +709,19 @@ class InGame extends Component {
     DBwatchAllPlayers && DBwatchAllPlayers();
     DBwatchTaggedPlayers && DBwatchTaggedPlayers();
     DBgetMatch && DBgetMatch();
+    DBwatchPlayersJoin && DBwatchPlayersJoin();
 
     map = null;
     thisUser = null;
     DBgetMatch = null;
     DBwatchAllPlayers = null;
     DBwatchTaggedPlayers = null;
+    DBwatchPlayersJoin = null;
+
     initTimerId = null;
     gameTimerId = null;
+
+    window.removeEventListener("beforeunload", this.handlePlayerQuit);
   }
 
   render() {
@@ -666,7 +739,9 @@ class InGame extends Component {
       initialisingTimer,
       remainingPlayers,
       quit,
-      showPlayBtn
+      showPlayBtn,
+      quitter,
+      showQuitOverlay
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -677,7 +752,73 @@ class InGame extends Component {
     } else {
       return (
         <Box align="center">
-          <Box id="map" style={{ height: "60vh", width: "100%" }}></Box>
+          {showQuitOverlay && (
+            <div>
+              <div
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  width: "100vw",
+                  height: "100vh",
+                  zIndex: 3,
+                  backgroundColor: "grey",
+                  opacity: 0.7
+                }}
+              ></div>
+              <Box
+                pad="medium"
+                background="light-2"
+                style={{
+                  height: "20vh",
+                  width: "60vw",
+                  position: "fixed",
+                  left: "50%",
+                  top: "50%",
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 3
+                }}
+              >
+                <p style={{ textAlign: "center" }}>
+                  Are you sure you want to quit?
+                </p>
+                <Box
+                  style={{ position: "relative", zIndex: 4 }}
+                  direction="row"
+                  align="center"
+                  justify="between"
+                >
+                  <Button
+                    hoverIndicator
+                    primary
+                    label="return to game"
+                    onClick={() => this.setState({ showQuitOverlay: false })}
+                  />
+                  <Button
+                    hoverIndicator
+                    secondary
+                    label="Quit"
+                    onClick={this.handlePlayerQuit}
+                  />
+                </Box>
+              </Box>
+            </div>
+          )}
+          <Box
+            style={{ position: "fixed", top: "1em", right: "1em", zIndex: 2 }}
+          >
+            <Box round="full" overflow="hidden" background="light-2">
+              <Button
+                icon={<Close />}
+                hoverIndicator
+                onClick={() => this.setState({ showQuitOverlay: true })}
+              />
+            </Box>
+          </Box>
+          <Box
+            id="map"
+            style={{ height: "60vh", width: "100%", zIndex: 1 }}
+          ></Box>
           {playing && (
             <div>
               <p style={{ color: "red" }}>{gameTimer}</p>
@@ -735,6 +876,7 @@ class InGame extends Component {
           {imTagger && playing && remainingPlayers.length > 0 && (
             <p> {remainingPlayers.length} players left! </p>
           )}
+          {quitter && <p>{quitter} has quit!</p>}
         </Box>
       );
     }

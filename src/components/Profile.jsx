@@ -11,7 +11,7 @@ class Profile extends Component {
   };
 
   componentDidMount() {
-    if (this.props.user) {
+    if (this.props.user.UID) {
       this.props.dispatch(getUser(this.props.user.UID));
     } else {
       this.setState({ redirect: true });
