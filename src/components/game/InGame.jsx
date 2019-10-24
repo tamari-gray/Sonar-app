@@ -21,7 +21,6 @@ let thisUser = null;
 
 // markers
 let taggers = [];
-let sonarActivePlayers = [];
 
 // firebase listeners
 let DBgetMatch = null;
@@ -515,53 +514,101 @@ class InGame extends Component {
     const query = playersRef(this.props.matchId).near({ center, radius: 2.5 });
 
     query.get().then(value => {
+      const geoQuery = []
+      value.docs.forEach(doc => {
+        if (doc.exists) {
+
+          geoQuery.push(doc.data())
+        }
+      });
+      console.log("geoQuery ", geoQuery)
+      const notTaggedPlayers = geoQuery.filter(p => !p.tagger)
+      console.log("not tagged query", notTaggedPlayers)
+
       //check if they are last players
-      if (query.length === this.state.remainingPlayers.length) {
-        finishedMatchRef(this.props.matchId)
-          .set({
-            draw: query
-          })
-          .then(() => console.log("match drew"))
-          .catch(e => console.log(`error when setting match draw ${e}`));
-      } else {
-        value.docs.forEach(p => {
-          const player = p.data();
-          playerRef(this.props.matchId, this.props.user.UID)
-            .update({
-              tagger: true,
-              sonar: false
-            })
-            .then(console.log(`updated ${player.name} doc to tagger: true`))
-            .catch(e => console.log(`error updating player to tagger ${e}`));
-
-          playerRef(this.props.matchId,player.id)
+      notTaggedPlayers && (
+        playersRef(this.props.matchId)
           .get()
-          .then((doc) => {
-            let pos
-            if (doc.exists) {
-              pos = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
-            }
+          .then(snapShot => {
 
-            return pos
-          })
-          .then(pos => {
-            pos && taggedPlayersRef(this.props.matchId)
-            .doc(player.id)
-            .set({
-              name: player.name,
-              coordinates: new firebase.firestore.GeoPoint(pos[0], pos[1])
+            //get remaining players
+            const players = []
+            snapShot.forEach(p => players.push(p.data()))
+
+            // set players as tagged
+            players.forEach((player) => {
+
+              // do i need to update player doc????????????????????????????????????????????????????????????????
+              // just listen to on add taggedPlayers coll => filter out if its me (to check if im tagged)
+              playerRef(this.props.matchId, this.props.user.UID)
+                .update({
+                  tagger: true,
+                  sonar: false
+                })
+                .then(console.log(`updated ${player.name} doc to tagger: true`))
+                .catch(e => console.log(`error updating player to tagger ${e}`));
+
+              playerRef(this.props.matchId, player.id)
+                .get()
+                .then((doc) => {
+                  let pos
+                  if (doc.exists) {
+                    pos = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
+                  }
+
+                  return pos
+                })
+                .then(pos => {
+                  pos && taggedPlayersRef(this.props.matchId)
+                    .doc(player.id)
+                    .set({
+                      name: player.name,
+                      coordinates: new firebase.firestore.GeoPoint(pos[0], pos[1])
+                    })
+                    .then(() =>
+                      console.log(`added ${player.name} to tagged players doc`)
+                    )
+                    .catch(e => console.log(`error adding ${player.name} to tagged players doc ${e}`));
+                })
+                .catch(e => console.log(`error getting ${player.name}'s position ${e}`));
             })
-            .then(() =>
-              console.log(`added ${player.name} to tagged players doc`)
+
+            // check for win
+            const remainingPlayers = players.filter(p => !p.tagger)
+
+            notTaggedPlayers.length === remainingPlayers.length && (
+              //check for draw || single winner
+              notTaggedPlayers.length > 1 ? this.setDraw(notTaggedPlayers) : this.setWinner(notTaggedPlayers[0])
             )
-            .catch(e => console.log(`error adding ${player.name} to tagged players doc ${e}`));
+
+            // endGame
+            remainingPlayers.length === 0 && this.endGame()
+
           })
-          .catch(e => console.log(`error getting ${player.name}'s position ${e}`));
-          
-        });
-      }
+          .catch(e => console.log(`error checking for remaining players`))
+      )
     });
   };
+
+  setDraw = (winners) => {
+    finishedMatchRef(this.props.matchId)
+      .set({
+        draw: winners
+      })
+      .then(() => console.log("match drew, winners are: ", winners))
+      .catch(e => console.log(`error when setting match draw ${e}`));
+  }
+
+  setWinner = (winner) => {
+    finishedMatchRef(this.props.matchId)
+      .set({
+        winner
+      })
+      .then(() => console.log(`set winner ${winner.name}`))
+      .catch(error => {
+        console.log("Error setting winner", error);
+      });
+  }
   watchTaggedPlayers = () => {
     DBwatchTaggedPlayers = taggedPlayersRef(this.props.matchId).onSnapshot(
       snapShot => {
@@ -607,17 +654,6 @@ class InGame extends Component {
   watchAllPlayers = () => {
     DBwatchAllPlayers = playersRef(this.props.matchId).onSnapshot(
       querySnapshot => {
-        querySnapshot.docChanges().forEach(change => {
-          if (change.type === "added") {
-          }
-          if (change.type === "modified") {
-            const player = change.doc.data();
-            this.checkForSonars(player);
-          }
-          if (change.type === "removed") {
-            console.log("removed", change.doc.data());
-          }
-        });
 
         const players = [];
         querySnapshot.forEach(doc => {
@@ -630,12 +666,6 @@ class InGame extends Component {
         this.setState({
           remainingPlayers
         });
-
-        // //watch: check for winner
-        this.checkForWinner(players);
-
-        // //watch: check if all players tagged
-        this.checkIfAllPlayersAreTagged(players);
       }
     );
   };
@@ -648,64 +678,6 @@ class InGame extends Component {
             map.removeLayer(tagger);
           });
       }
-    }
-  };
-  checkForSonars = player => {
-    console.log("sonar used: ", player)
-    if (this.state.imTagger) {
-      if (player.sonar === true) {
-        const pos = [player.coordinates.latitude, player.coordinates.longitude];
-        console.log("setting just sonar'd player marker");
-        const marker = L.circle(pos, {
-          color: "green",
-          fillColor: "green",
-          fillOpacity: 0.5,
-          radius: 2.5
-        })
-          .addTo(map)
-          .bindPopup(`${player.name} used their sonar`)
-          .openPopup();
-        sonarActivePlayers.push({
-          id: player.id,
-          marker: marker
-        });
-        setTimeout(() => {
-          if (!this.state.finished && marker) {
-            console.log("removing just sonar'd player marker");
-            map.removeLayer(marker);
-          }
-        }, 3000);
-      }
-    }
-  };
-  checkForWinner = players => {
-    const notTagged = players.filter(p => !p.tagger);
-
-    if (notTagged.length === 1) {
-      const winner = notTagged[0];
-      console.log("winner:", winner);
-      finishedMatchRef(this.props.matchId)
-        .set({
-          winner
-        })
-        .then(() => console.log(`set winner ${winner.name}`))
-        .catch(error => {
-          console.log("Error setting winner", error);
-        });
-    }
-  };
-  checkIfAllPlayersAreTagged = players => {
-    const allPlayersTaggged = players.every(player => player.tagger);
-    console.log("allPlayersTaggged", allPlayersTaggged);
-
-    if (allPlayersTaggged) {
-      matchRef(this.props.matchId)
-        .get()
-        .then(doc => {
-          if (doc.exists) {
-            this.endGame();
-          }
-        });
     }
   };
   endGame = () => {
