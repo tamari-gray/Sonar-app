@@ -709,7 +709,6 @@ class InGame extends Component {
 
     window.removeEventListener("beforeunload", this.handlePlayerQuit);
   }
-
   render() {
     const {
       gameTimer,
