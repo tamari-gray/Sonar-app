@@ -33,7 +33,7 @@ export function matchRef(matchId) {
 }
 
 export function finishedMatchRef(matchId) {
-  return geoDb.collection("finishedMatches").doc(matchId);
+  return db.collection("finishedMatches").doc(matchId);
 }
 
 export function thisUserRef(matchId, userId) {
