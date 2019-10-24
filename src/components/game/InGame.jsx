@@ -589,7 +589,6 @@ class InGame extends Component {
       )
     });
   };
-
   setDraw = (winners) => {
     finishedMatchRef(this.props.matchId)
       .set({
@@ -598,7 +597,6 @@ class InGame extends Component {
       .then(() => console.log("match drew, winners are: ", winners))
       .catch(e => console.log(`error when setting match draw ${e}`));
   }
-
   setWinner = (winner) => {
     finishedMatchRef(this.props.matchId)
       .set({
@@ -650,24 +648,6 @@ class InGame extends Component {
         map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
       }
     }, 3000);
-  };
-  watchAllPlayers = () => {
-    DBwatchAllPlayers = playersRef(this.props.matchId).onSnapshot(
-      querySnapshot => {
-
-        const players = [];
-        querySnapshot.forEach(doc => {
-          players.push(doc.data());
-        });
-
-        //work out remaining players
-        const remainingPlayers = players.filter(p => !p.tagger);
-        console.log("remaining", remainingPlayers);
-        this.setState({
-          remainingPlayers
-        });
-      }
-    );
   };
   checkIfImTagged = player => {
     if (player.id === this.props.user.UID) {
