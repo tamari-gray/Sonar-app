@@ -36,7 +36,7 @@ export function finishedMatchRef(matchId) {
   return db.collection("finishedMatches").doc(matchId);
 }
 
-export function thisUserRef(matchId, userId) {
+export function playerRef(matchId, userId) {
   return geoDb
     .collection("matches")
     .doc(matchId)
