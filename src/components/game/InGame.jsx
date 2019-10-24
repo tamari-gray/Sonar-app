@@ -6,7 +6,7 @@ import { Close } from "grommet-icons";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
-  thisUserRef,
+  playerRef,
   matchRef,
   playersRef,
   sonardPlayersRef,
@@ -81,7 +81,7 @@ class InGame extends Component {
     if (this.state.remainingPlayers.length === 1) {
       this.endGame();
     } else {
-      thisUserRef(this.props.matchId, this.props.user.UID)
+      playerRef(this.props.matchId, this.props.user.UID)
         .delete()
         .then(() => {
           this.setState({ quit: true });
@@ -135,16 +135,17 @@ class InGame extends Component {
     }, 1000);
   };
   sendSonar = () => {
-    // get all players from db ONCE
     playersRef(this.props.matchId)
       .where("tagger", "==", true)
       .get()
       .then(querySnapshot => {
+        console.log("got taggers")
         querySnapshot.forEach(doc => {
           let pos = [
             doc.data().coordinates.latitude,
             doc.data().coordinates.longitude
           ];
+          console.log("tagger pos", pos)
           const marker = L.circle(pos, {
             color: "green",
             fillColor: "green",
@@ -163,29 +164,44 @@ class InGame extends Component {
         });
       })
       .then(() => {
-        // notify taggers i used sonar
-        sonardPlayersRef(this.props.matchId)
-          .doc(this.props.user.UID)
-          .set({
-            name: this.props.user.username,
-            id: this.props.user.UID,
-            coordinates: new firebase.firestore.GeoPoint(1, 0)
+        playerRef(this.props.matchId, this.props.user.UID)
+          .get()
+          .then(doc => {
+            const pos = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
+
+            console.log(`got ${this.props.user.username}'s position. ${pos}`)
+
+            return pos
           })
-          .then(() => {
-            console.log("added player to sonard players coll");
-            // setTimeout(() => {
-            sonardPlayersRef(this.props.matchId)
+          .then(pos => {
+            // notify taggers i used sonar
+            pos && sonardPlayersRef(this.props.matchId)
               .doc(this.props.user.UID)
-              .delete()
-              .then(() => console.log(`removed player from sonard coll`))
+              .set({
+                name: this.props.user.username,
+                id: this.props.user.UID,
+                coordinates: new firebase.firestore.GeoPoint(pos[0], pos[1]) // set to current position
+              })
+              .then(() => {
+                console.log("added player to sonard players coll");
+                // setTimeout(() => {
+                sonardPlayersRef(this.props.matchId)
+                  .doc(this.props.user.UID)
+                  .delete()
+                  .then(() => console.log(`removed player from sonard coll`))
+                  .catch(e =>
+                    console.log(`error deleting player from sonard coll ${e}`)
+                  );
+                // }, 5000);
+              })
               .catch(e =>
-                console.log(`error deleting player from sonard coll ${e}`)
+                console.log(`error adding player to sonard players coll ${e}`)
               );
-            // }, 5000);
           })
           .catch(e =>
-            console.log(`error adding player to sonard players coll ${e}`)
+            console.log(`error getting ${this.props.user.UID}'s position`)
           );
+
       });
   };
   watchForSonardPlayers = () => {
@@ -447,11 +463,12 @@ class InGame extends Component {
         thisUser.setLatLng(newLatLng);
       }
       // update users location in DB
-      thisUserRef(this.props.matchId, this.props.user.UID)
+      playerRef(this.props.matchId, this.props.user.UID)
         .update({
           coordinates: pos
         })
-        .catch(e => console.log("error adding user to db", e));
+        .then(() => console.log("watching user position"))
+        .catch(e => console.log("error watching user position", e));
     });
 
     map.on("locationerror", e => {
@@ -509,22 +526,38 @@ class InGame extends Component {
       } else {
         value.docs.forEach(p => {
           const player = p.data();
-          thisUserRef(this.props.matchId, this.props.user.UID)
+          playerRef(this.props.matchId, this.props.user.UID)
             .update({
               tagger: true,
               sonar: false
             })
             .then(console.log(`updated ${player.name} doc to tagger: true`))
             .catch(e => console.log(`error updating player to tagger ${e}`));
-          taggedPlayersRef(this.props.matchId)
+
+          playerRef(this.props.matchId,player.id)
+          .get()
+          .then((doc) => {
+            let pos
+            if (doc.exists) {
+              pos = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
+            }
+
+            return pos
+          })
+          .then(pos => {
+            pos && taggedPlayersRef(this.props.matchId)
             .doc(player.id)
             .set({
               name: player.name,
-              coordinates: new firebase.firestore.GeoPoint(1, 0)
+              coordinates: new firebase.firestore.GeoPoint(pos[0], pos[1])
             })
             .then(() =>
               console.log(`added ${player.name} to tagged players doc`)
-            );
+            )
+            .catch(e => console.log(`error adding ${player.name} to tagged players doc ${e}`));
+          })
+          .catch(e => console.log(`error getting ${player.name}'s position ${e}`));
+          
         });
       }
     });
@@ -618,6 +651,7 @@ class InGame extends Component {
     }
   };
   checkForSonars = player => {
+    console.log("sonar used: ", player)
     if (this.state.imTagger) {
       if (player.sonar === true) {
         const pos = [player.coordinates.latitude, player.coordinates.longitude];
@@ -825,24 +859,24 @@ class InGame extends Component {
             </div>
           )}
           {// if waiting and admin
-          admin && waiting && (
-            <div>
-              {showPlayBtn ? (
-                <p>Press play when all players have joined game.</p>
-              ) : (
-                <p style={{ marginRight: "2em" }}>no players joined yet..</p>
-              )}
+            admin && waiting && (
+              <div>
+                {showPlayBtn ? (
+                  <p>Press play when all players have joined game.</p>
+                ) : (
+                    <p style={{ marginRight: "2em" }}>no players joined yet..</p>
+                  )}
 
-              <Box align="center" direction="row">
-                {showPlayBtn && (
-                  <Button onClick={this.chooseTagger} label="Play!" primary />
-                )}
-                <Button onClick={this.quitGame} label="Quit" secondary />
-              </Box>
-            </div>
-          )}
+                <Box align="center" direction="row">
+                  {showPlayBtn && (
+                    <Button onClick={this.chooseTagger} label="Play!" primary />
+                  )}
+                  <Button onClick={this.quitGame} label="Quit" secondary />
+                </Box>
+              </div>
+            )}
           {// if waiting and not admin
-          !admin && waiting && <p>waiting for more players to join...</p>}
+            !admin && waiting && <p>waiting for more players to join...</p>}
 
           {initialising && !imTagger && (
             <div>
