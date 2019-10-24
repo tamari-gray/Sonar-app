@@ -29,6 +29,7 @@ class FinishedGame extends Component {
               this.updateWinTotal();
             }
           } else if (doc.data().draw) {
+            console.log(doc.data().draw);
             this.setState({
               draw: doc.data().draw
             });
@@ -70,25 +71,27 @@ class FinishedGame extends Component {
   };
   render() {
     const { winner, draw } = this.state;
+    console.log(draw);
     return (
       <Box align="center">
-        {winner && (
-          <Box
-            justify="center"
-            align="center"
-            style={{ paddingLeft: "1em", paddingRight: "1em" }}
-          >
+        {
+          <Box justify="center" align="center" pad="medium">
             {winner && <Heading>{winner.name} won!</Heading>}
             {draw && (
-              <div>
+              <Box
+                direcrtion="column"
+                justify="center"
+                align="center"
+                pad="medium"
+              >
                 <Heading>Its a draw!</Heading>
                 {draw.map(p => {
-                  return <Heading>{p.name} won!</Heading>;
+                  return <Heading>{p.name} won</Heading>;
                 })}
-              </div>
+              </Box>
             )}
           </Box>
-        )}
+        }
         <Box direction="row">
           <Button as={Link} to={routes.LOBBY} primary label="play again" />
           <Button as={Link} to={routes.PROFILE} secondary label="go home" />
