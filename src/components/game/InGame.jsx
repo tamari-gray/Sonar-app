@@ -131,7 +131,8 @@ class InGame extends Component {
         '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    const boundary = L.circle(
+    // set boundary
+    L.circle(
       [this.state.boundary.lat, this.state.boundary.lng],
       {
         color: "blue",
