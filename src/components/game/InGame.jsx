@@ -375,21 +375,25 @@ class InGame extends Component {
       });
   };
   tagPlayer = () => {
-    // const center = new firebase.firestore.GeoPoint(
-    //   this.state.myPosition.lat,
-    //   this.state.myPosition.lng
-    // ); // this players pos
+    const center = new firebase.firestore.GeoPoint(
+      this.state.myPosition.lat,
+      this.state.myPosition.lng
+    ); // this players pos
 
-    let center
+    // let center = new firebase.firestore.GeoPoint(
+    //   -39.637449,
+    //   176.861232
+    //   )
 
-    playerRef(this.props.matchId, this.props.user.UID)
-      .get()
-      .then(doc => {
-        center = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
-        console.log("got player location")
-      })
+      // get player location
+    // playerRef(this.props.matchId, this.props.user.UID)
+    //   .get()
+    //   .then(doc => {
+    //     // center = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
+    //     console.log("got player location")
+    //   })
 
-    const query = playersRef(this.props.matchId).near({ center, radius: 5 });
+    const query = playersRef(this.props.matchId).near({ center, radius: 0.025 });
 
     query.get().then(value => {
       const geoQuery = []
