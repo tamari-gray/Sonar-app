@@ -71,7 +71,6 @@ class FinishedGame extends Component {
   };
   render() {
     const { winner, draw } = this.state;
-    console.log(draw);
     return (
       <Box align="center">
         {

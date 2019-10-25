@@ -75,6 +75,114 @@ class InGame extends Component {
       this.getMatch(); // toggle play btn
     }
   }
+  startTimer = duration => {
+    var timer = duration,
+      minutes,
+      seconds;
+    gameTimerId = setInterval(() => {
+      minutes = parseInt(timer / 60, 10);
+      seconds = parseInt(timer % 60, 10);
+
+      minutes = minutes < 10 ? "0" + minutes : minutes;
+      seconds = seconds < 10 ? "0" + seconds : seconds;
+
+      if (timer === 0) {
+        clearInterval(gameTimerId);
+        if (this.state.admin) {
+          this.getSurvivors();
+        }
+      }
+
+      let clock = minutes + ":" + seconds;
+      this.setState({ gameTimer: clock });
+      if (--timer < 0) {
+      }
+    }, 1000);
+  };
+  startInitialiseTimer = () => {
+    let timer = 5;
+    initTimerId = setInterval(() => {
+      timer = timer - 1;
+      this.setState({
+        initialisingTimer: timer
+      });
+      if (timer === 0) {
+        this.setState({
+          initialisingTimer: 0
+        });
+        matchRef(this.props.matchId) // move to playing phase in firebase
+          .update({ initialising: false, playing: true })
+          .catch(e => console.log(`Error initialising game. ${e}`));
+      }
+    }, 1000);
+  };
+  initMap = () => {
+    map = L.map("map", {
+      zoom: 22,
+      maxZoomLevel: 22,
+      maxNativeZoom: 22,
+      zoomControl: true
+    }).fitWorld();
+    map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      detectRetina: true,
+      attribution:
+        '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    const boundary = L.circle(
+      [this.state.boundary.lat, this.state.boundary.lng],
+      {
+        color: "blue",
+        fillColor: "#f03",
+        fillOpacity: 0.3,
+        radius: 100
+      }
+    ).addTo(map);
+
+    map.on("locationfound", e => {
+      this.setState({ myPosition: e.latlng });
+      // const point = geo.point(e.latlng.lat, e.latlng.lng)
+      const pos = new firebase.firestore.GeoPoint(e.latlng.lat, e.latlng.lng);
+      if (thisUser === null && map !== null) {
+        thisUser = L.circle(e.latlng, {
+          // set player marker to black
+          color: "black",
+          fillColor: "#f03",
+          fillOpacity: 0.5,
+          radius: 5
+        })
+          .addTo(map)
+          .bindPopup(this.props.user.username)
+          .openPopup();
+      } else if (thisUser) {
+        let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
+        thisUser.setLatLng(newLatLng);
+      }
+      // update users location in DB
+      playerRef(this.props.matchId, this.props.user.UID)
+        .update({
+          coordinates: pos
+        })
+        .then(() => console.log("watching user position"))
+        .catch(e => console.log("error watching user position", e));
+    });
+
+    map.on("locationerror", e => {
+      alert(`Please enable geolocation access to play game. 
+      redirecting in 2 seconds`);
+      setTimeout(() => {
+        this.setState({
+          geolocationError: true
+        });
+      }, 2500);
+    });
+
+    map.locate({ maxZoom: 22, watch: true, enableHighAccuracy: true });
+
+    this.state.finished && map.stopLocate()
+  };
   handlePlayerQuit = () => {
     console.log("quitting", this.state.remainingPlayers.length);
     if (this.state.remainingPlayers.length === 1) {
@@ -132,6 +240,295 @@ class InGame extends Component {
         clearInterval(intervalId);
       }
     }, 1000);
+  };
+  getMatch = () => {
+    DBgetMatch = matchRef(this.props.matchId).onSnapshot(doc => {
+      if (doc.exists) {
+        // check if user is admin
+        if (doc.data().admin.id === this.props.user.UID) {
+          this.setState({ admin: doc.data().admin });
+        }
+
+        // check if game is in waiting phase
+        if (doc.data().waiting === true) {
+          this.setState({ waiting: true });
+          if (doc.data().admin.id === this.props.user.UID) {
+            this.watchPlayersJoin();
+          }
+        } else if (doc.data().waiting === false) {
+          this.setState({ waiting: false });
+        }
+
+        // check if game is initialising
+        if (doc.data().initialising) {
+          this.setState({ initialising: true });
+          this.startInitialiseTimer();
+        } else if (doc.data().initialising === false) {
+          this.setState({ initialising: false });
+        }
+
+        // check if game is in play
+        if (doc.data().playing) {
+          clearInterval(initTimerId);
+          this.setState({ playing: true });
+          this.watchForTaggedPlayers();
+          this.watchForSonardPlayers();
+        } else if (doc.data().playing === false) {
+          this.setState({ playing: false });
+        }
+
+        // check who le tagger is
+        if (doc.data().tagger) {
+          if (doc.data().tagger.id === this.props.user.UID) {
+            this.setState({
+              imTagger: true,
+              tagger: doc.data().tagger
+            });
+          } else {
+            this.setState({ tagger: doc.data().tagger });
+          }
+        }
+
+        // if game is finished
+        if (doc.data().finished) {
+          clearInterval(gameTimerId);
+          if (this.state.admin) {
+            this.deleteMatch();
+          }
+          this.setState({ finished: true });
+        }
+
+        // if game is finished
+        if (doc.data().quit) {
+          clearInterval(gameTimerId);
+          if (this.state.admin) {
+            this.deleteMatch();
+          }
+          this.setState({ quit: true });
+        }
+
+        if (doc.data().quitter) {
+          console.log("we got a quitter", doc.data().quitter);
+          this.setState({
+            quitter: doc.data().quitter
+          });
+
+          if (doc.data().quitter === doc.data().tagger.name) {
+            if (this.state.taggerHasTaggedSomeone) {
+              console.log("setting draw..");
+              this.setDraw();
+            }
+          }
+        }
+
+        console.log("match data", doc.data());
+      }
+    });
+  };
+  watchPlayersJoin = () => {
+    DBwatchPlayersJoin = playersRef(this.props.matchId).onSnapshot(snap => {
+      const size = snap.size; // will return the collection size
+      console.log("player joined, total = ", size);
+      if (size > 1) {
+        this.setState({
+          playersJoined: size,
+          showPlayBtn: true
+        });
+      }
+    });
+
+    if (this.state.playing) {
+      DBwatchPlayersJoin && DBwatchPlayersJoin();
+      DBwatchPlayersJoin = null;
+    }
+  };
+  deleteMatch = () => {
+    matchRef(this.props.matchId)
+      .delete()
+      .then(() => {
+        console.log("game successfully deleted!");
+      })
+      .catch(e => {
+        console.error("Error removing match from db: ", e);
+      });
+  };
+  chooseTagger = () => {
+    let players = [];
+    // choose tagger
+    playersRef(this.props.matchId)
+      .get()
+      .then(querySnap => {
+        querySnap.forEach(snap => {
+          players.push({ id: snap.data().id, name: snap.data().name });
+        });
+      })
+      .then(() => {
+        const tagger = players[Math.floor(Math.random() * players.length)];
+        matchRef(this.props.matchId)
+          .update({ initialising: true, waiting: false, tagger })
+          .catch(e => console.log(`Error choosing tagger. ${e}`));
+
+        playersRef(this.props.matchId)
+          .doc(tagger.id)
+          .update({ tagger: true })
+          .then(() => console.log(` set tagger. ${tagger.name}`))
+          .catch(e => console.log(`Error choosing tagger. ${e}`));
+      });
+  };
+  tagPlayer = () => {
+    const center = new firebase.firestore.GeoPoint(
+      this.state.myPosition.lat,
+      this.state.myPosition.lng
+    ); // this players pos
+
+    const query = playersRef(this.props.matchId).near({ center, radius: 2.5 });
+
+    query.get().then(value => {
+      const geoQuery = []
+      value.docs.forEach(doc => {
+        if (doc.exists) {
+
+          geoQuery.push(doc.data())
+        }
+      });
+      console.log("geoQuery ", geoQuery)
+      const notTaggedPlayers = geoQuery.filter(p => !p.tagger)
+      console.log("not tagged query", notTaggedPlayers)
+
+      //check if they are last players
+      notTaggedPlayers && (
+        playersRef(this.props.matchId)
+          .get()
+          .then(snapShot => {
+
+            //get remaining players
+            const players = []
+            snapShot.forEach(p => players.push(p.data()))
+            const remainingPlayers = players.filter(p => !p.tagger)
+
+            // check for win
+            notTaggedPlayers.length === remainingPlayers.length && ( 
+              //check for draw || single winner
+              notTaggedPlayers.length > 1 ? this.setDraw(notTaggedPlayers) : this.setWinner(notTaggedPlayers[0])
+            )
+            // endGame
+            remainingPlayers.length === 0 ? this.endGame() : this.setPlayersAsTagged(notTaggedPlayers)
+
+          })
+          .catch(e => console.log(`error checking for remaining players`))
+      )
+    });
+  };
+  setPlayersAsTagged = players => {
+    // set players as tagged
+    players.forEach((player) => {
+
+      // do i need to update player doc????????????????????????????????????????????????????????????????
+      // just listen to on add taggedPlayers coll => filter out if its me (to check if im tagged)
+      // hmmm idk yet
+      playerRef(this.props.matchId, player.id)
+        .update({
+          tagger: true,
+          sonar: false
+        })
+        .then(console.log(`updated ${player.name} doc to tagger: true`))
+        .catch(e => console.log(`error updating player to tagger ${e}`));
+
+      playerRef(this.props.matchId, player.id)
+        .get()
+        .then((doc) => {
+          let pos
+          if (doc.exists) {
+            pos = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
+          }
+          return pos
+        })
+        .then(pos => {
+          pos && taggedPlayersRef(this.props.matchId)
+            .doc(player.id)
+            .set({
+              name: player.name,
+              id: player.id,
+              coordinates: new firebase.firestore.GeoPoint(pos[0], pos[1])
+            })
+            .then(() =>
+              console.log(`added ${player.name} to tagged players doc`)
+            )
+            .catch(e => console.log(`error adding ${player.name} to tagged players doc ${e}`));
+        })
+        .catch(e => console.log(`error getting ${player.name}'s position ${e}`));
+    })
+  }
+  setDraw = (winners) => {
+    finishedMatchRef(this.props.matchId)
+      .set({
+        draw: winners
+      })
+      .then(() => console.log("match drew, winners are: ", winners))
+      .catch(e => console.log(`error when setting match draw ${e}`));
+  }
+  setWinner = (winner) => {
+    finishedMatchRef(this.props.matchId)
+      .set({
+        winner
+      })
+      .then(() => console.log(`set winner ${winner.name}`))
+      .catch(error => {
+        console.log("Error setting winner", error);
+      });
+  }
+  watchForTaggedPlayers = () => {
+    DBwatchTaggedPlayers = taggedPlayersRef(this.props.matchId).onSnapshot(
+      snapShot => {
+        snapShot.docChanges().forEach(change => {
+          if (change.type === "added") {
+            this.setState({ taggerHasTaggedSomeone: true });
+            const player = change.doc.data();
+            this.setTaggedPlayerMarker(player);
+
+            if (player.id === this.props.user.UID) {
+              this.checkIfImTagged(player);
+            }
+          }
+          if (change.type === "modified") {
+          }
+          if (change.type === "removed") {
+            console.log("removed", change.doc.data());
+          }
+        });
+      }
+    );
+  };
+  setTaggedPlayerMarker = player => {
+    console.log(player.name + "was tagged");
+    let pos = [player.coordinates.latitude, player.coordinates.longitude];
+    const marker = L.circle(pos, {
+      color: "orange",
+      fillColor: "orange",
+      fillOpacity: 0.5,
+      radius: 2.5
+    })
+      .addTo(map)
+      .bindPopup(`${player.name} was tagged`)
+      .openPopup();
+    setTimeout(() => {
+      if (!this.state.finished && marker) {
+        console.log("removing just tagged player marker");
+        map.removeLayer(marker);
+        map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+      }
+    }, 3000);
+  };
+  checkIfImTagged = player => {
+    if (player.id === this.props.user.UID) {
+      if (player.tagger) {
+        this.setState({ imTagger: true });
+        taggers &&
+          taggers.forEach(tagger => {
+            map.removeLayer(tagger);
+          });
+      }
+    }
   };
   sendSonar = () => {
     playersRef(this.props.matchId)
@@ -209,7 +606,7 @@ class InGame extends Component {
         snapShot.docChanges().forEach(change => {
           if (change.type === "added") {
             const player = change.doc.data();
-            this.checkForSonardPlayers(player);
+            this.checkForPlayersSonar(player);
           }
           if (change.type === "modified") {
           }
@@ -219,7 +616,7 @@ class InGame extends Component {
       }
     );
   };
-  checkForSonardPlayers = player => {
+  checkForPlayersSonar = player => {
     if (this.state.imTagger) {
       console.log(player.name + "used sonar");
       let pos = [player.coordinates.latitude, player.coordinates.longitude];
@@ -240,424 +637,6 @@ class InGame extends Component {
           map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
         }
       }, 5000);
-    }
-  };
-  getMatch = () => {
-    DBgetMatch = matchRef(this.props.matchId).onSnapshot(doc => {
-      if (doc.exists) {
-        // check if user is admin
-        if (doc.data().admin.id === this.props.user.UID) {
-          this.setState({ admin: doc.data().admin });
-        }
-
-        // check if game is in waiting phase
-        if (doc.data().waiting === true) {
-          this.setState({ waiting: true });
-          if (doc.data().admin.id === this.props.user.UID) {
-            this.watchPlayersJoin();
-          }
-        } else if (doc.data().waiting === false) {
-          this.setState({ waiting: false });
-        }
-
-        // check if game is initialising
-        if (doc.data().initialising) {
-          this.setState({ initialising: true });
-          this.startInitialiseTimer();
-        } else if (doc.data().initialising === false) {
-          this.setState({ initialising: false });
-        }
-
-        // check if game is in play
-        if (doc.data().playing) {
-          clearInterval(initTimerId);
-          this.setState({ playing: true });
-          this.watchAllPlayers();
-          this.watchTaggedPlayers();
-          this.watchForSonardPlayers();
-        } else if (doc.data().playing === false) {
-          this.setState({ playing: false });
-        }
-
-        // check who le tagger is
-        if (doc.data().tagger) {
-          if (doc.data().tagger.id === this.props.user.UID) {
-            this.setState({
-              imTagger: true,
-              tagger: doc.data().tagger
-            });
-          } else {
-            this.setState({ tagger: doc.data().tagger });
-          }
-        }
-
-        // if game is finished
-        if (doc.data().finished) {
-          clearInterval(gameTimerId);
-          if (this.state.admin) {
-            this.deleteMatch();
-          }
-          this.setState({ finished: true });
-        }
-
-        // if game is finished
-        if (doc.data().quit) {
-          clearInterval(gameTimerId);
-          if (this.state.admin) {
-            this.deleteMatch();
-          }
-          this.setState({ quit: true });
-        }
-
-        if (doc.data().quitter) {
-          console.log("we got a quitter", doc.data().quitter);
-          this.setState({
-            quitter: doc.data().quitter
-          });
-
-          if (doc.data().quitter === doc.data().tagger.name) {
-            if (this.state.taggerHasTaggedSomeone) {
-              console.log("setting draw..");
-              this.setDraw();
-            }
-          }
-        }
-
-        console.log("match data", doc.data());
-      }
-    });
-  };
-  watchPlayersJoin = () => {
-    DBwatchPlayersJoin = playersRef(this.props.matchId).onSnapshot(snap => {
-      const size = snap.size; // will return the collection size
-      console.log("player joined, total = ", size);
-      if (size > 1) {
-        this.setState({
-          playersJoined: size,
-          showPlayBtn: true
-        });
-      }
-    });
-
-    if (this.state.playing) {
-      DBwatchPlayersJoin && DBwatchPlayersJoin();
-      DBwatchPlayersJoin = null;
-    }
-  };
-  setDraw = () => {
-    const players = this.state.remainingPlayers;
-    console.log("draw, winners = ", players);
-    finishedMatchRef(this.props.matchId)
-      .get()
-      .then(doc => {
-        if (!doc.exists) {
-          finishedMatchRef(this.props.matchId)
-            .set({
-              draw: players
-            })
-            .then(() => {
-              console.log("game has ended in a draw");
-              this.endGame();
-            })
-            .catch(e => {
-              console.log("error ending game as draw: ", e);
-            });
-        }
-      });
-  };
-  deleteMatch = () => {
-    matchRef(this.props.matchId)
-      .delete()
-      .then(() => {
-        console.log("game successfully deleted!");
-      })
-      .catch(e => {
-        console.error("Error removing match from db: ", e);
-      });
-  };
-  startTimer = duration => {
-    var timer = duration,
-      minutes,
-      seconds;
-    gameTimerId = setInterval(() => {
-      minutes = parseInt(timer / 60, 10);
-      seconds = parseInt(timer % 60, 10);
-
-      minutes = minutes < 10 ? "0" + minutes : minutes;
-      seconds = seconds < 10 ? "0" + seconds : seconds;
-
-      if (timer === 0) {
-        clearInterval(gameTimerId);
-        if (this.state.admin) {
-          this.getSurvivors();
-        }
-      }
-
-      let clock = minutes + ":" + seconds;
-      this.setState({ gameTimer: clock });
-      if (--timer < 0) {
-      }
-    }, 1000);
-  };
-  startInitialiseTimer = () => {
-    let timer = 5;
-    initTimerId = setInterval(() => {
-      timer = timer - 1;
-      this.setState({
-        initialisingTimer: timer
-      });
-      if (timer === 0) {
-        this.setState({
-          initialisingTimer: 0
-        });
-        matchRef(this.props.matchId) // move to playing phase in firebase
-          .update({ initialising: false, playing: true })
-          .catch(e => console.log(`Error initialising game. ${e}`));
-      }
-    }, 1000);
-  };
-  initMap = () => {
-    map = L.map("map", {
-      zoom: 22,
-      maxZoomLevel: 22,
-      maxNativeZoom: 22,
-      zoomControl: true
-    }).fitWorld();
-    map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      detectRetina: true,
-      attribution:
-        '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-
-    const boundary = L.circle(
-      [this.state.boundary.lat, this.state.boundary.lng],
-      {
-        color: "blue",
-        fillColor: "#f03",
-        fillOpacity: 0.3,
-        radius: 100
-      }
-    ).addTo(map);
-
-    map.on("locationfound", e => {
-      this.setState({ myPosition: e.latlng });
-      // const point = geo.point(e.latlng.lat, e.latlng.lng)
-      const pos = new firebase.firestore.GeoPoint(e.latlng.lat, e.latlng.lng);
-      const matchId = this.props.matchId;
-      if (thisUser === null && map !== null) {
-        thisUser = L.circle(e.latlng, {
-          // set player marker to black
-          color: "black",
-          fillColor: "#f03",
-          fillOpacity: 0.5,
-          radius: 5
-        })
-          .addTo(map)
-          .bindPopup(this.props.user.username)
-          .openPopup();
-      } else if (thisUser) {
-        let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
-        thisUser.setLatLng(newLatLng);
-      }
-      // update users location in DB
-      playerRef(this.props.matchId, this.props.user.UID)
-        .update({
-          coordinates: pos
-        })
-        .then(() => console.log("watching user position"))
-        .catch(e => console.log("error watching user position", e));
-    });
-
-    map.on("locationerror", e => {
-      alert(`Please enable geolocation access to play game. 
-      redirecting in 2 seconds`);
-      setTimeout(() => {
-        this.setState({
-          geolocationError: true
-        });
-      }, 2500);
-    });
-
-    map.locate({ maxZoom: 22, watch: true, enableHighAccuracy: true });
-  };
-  chooseTagger = () => {
-    let players = [];
-    // choose tagger
-    playersRef(this.props.matchId)
-      .get()
-      .then(querySnap => {
-        querySnap.forEach(snap => {
-          players.push({ id: snap.data().id, name: snap.data().name });
-        });
-      })
-      .then(() => {
-        const tagger = players[Math.floor(Math.random() * players.length)];
-        matchRef(this.props.matchId)
-          .update({ initialising: true, waiting: false, tagger })
-          .catch(e => console.log(`Error choosing tagger. ${e}`));
-
-        playersRef(this.props.matchId)
-          .doc(tagger.id)
-          .update({ tagger: true })
-          .then(() => console.log(` set tagger. ${tagger.name}`))
-          .catch(e => console.log(`Error choosing tagger. ${e}`));
-      });
-  };
-  tagPlayer = () => {
-    const center = new firebase.firestore.GeoPoint(
-      this.state.myPosition.lat,
-      this.state.myPosition.lng
-    ); // this players pos
-
-    const query = playersRef(this.props.matchId).near({ center, radius: 2.5 });
-
-    query.get().then(value => {
-      const geoQuery = []
-      value.docs.forEach(doc => {
-        if (doc.exists) {
-
-          geoQuery.push(doc.data())
-        }
-      });
-      console.log("geoQuery ", geoQuery)
-      const notTaggedPlayers = geoQuery.filter(p => !p.tagger)
-      console.log("not tagged query", notTaggedPlayers)
-
-      //check if they are last players
-      notTaggedPlayers && (
-        playersRef(this.props.matchId)
-          .get()
-          .then(snapShot => {
-
-            //get remaining players
-            const players = []
-            snapShot.forEach(p => players.push(p.data()))
-
-            // set players as tagged
-            players.forEach((player) => {
-
-              // do i need to update player doc????????????????????????????????????????????????????????????????
-              // just listen to on add taggedPlayers coll => filter out if its me (to check if im tagged)
-              playerRef(this.props.matchId, this.props.user.UID)
-                .update({
-                  tagger: true,
-                  sonar: false
-                })
-                .then(console.log(`updated ${player.name} doc to tagger: true`))
-                .catch(e => console.log(`error updating player to tagger ${e}`));
-
-              playerRef(this.props.matchId, player.id)
-                .get()
-                .then((doc) => {
-                  let pos
-                  if (doc.exists) {
-                    pos = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
-                  }
-
-                  return pos
-                })
-                .then(pos => {
-                  pos && taggedPlayersRef(this.props.matchId)
-                    .doc(player.id)
-                    .set({
-                      name: player.name,
-                      coordinates: new firebase.firestore.GeoPoint(pos[0], pos[1])
-                    })
-                    .then(() =>
-                      console.log(`added ${player.name} to tagged players doc`)
-                    )
-                    .catch(e => console.log(`error adding ${player.name} to tagged players doc ${e}`));
-                })
-                .catch(e => console.log(`error getting ${player.name}'s position ${e}`));
-            })
-
-            // check for win
-            const remainingPlayers = players.filter(p => !p.tagger)
-
-            notTaggedPlayers.length === remainingPlayers.length && (
-              //check for draw || single winner
-              notTaggedPlayers.length > 1 ? this.setDraw(notTaggedPlayers) : this.setWinner(notTaggedPlayers[0])
-            )
-
-            // endGame
-            remainingPlayers.length === 0 && this.endGame()
-
-          })
-          .catch(e => console.log(`error checking for remaining players`))
-      )
-    });
-  };
-  setDraw = (winners) => {
-    finishedMatchRef(this.props.matchId)
-      .set({
-        draw: winners
-      })
-      .then(() => console.log("match drew, winners are: ", winners))
-      .catch(e => console.log(`error when setting match draw ${e}`));
-  }
-  setWinner = (winner) => {
-    finishedMatchRef(this.props.matchId)
-      .set({
-        winner
-      })
-      .then(() => console.log(`set winner ${winner.name}`))
-      .catch(error => {
-        console.log("Error setting winner", error);
-      });
-  }
-  watchTaggedPlayers = () => {
-    DBwatchTaggedPlayers = taggedPlayersRef(this.props.matchId).onSnapshot(
-      snapShot => {
-        snapShot.docChanges().forEach(change => {
-          if (change.type === "added") {
-            this.setState({ taggerHasTaggedSomeone: true });
-            const player = change.doc.data();
-            this.checkForTaggedPlayers(player);
-
-            if (player.id === this.props.user.UID) {
-              this.checkIfImTagged(player);
-            }
-          }
-          if (change.type === "modified") {
-          }
-          if (change.type === "removed") {
-            console.log("removed", change.doc.data());
-          }
-        });
-      }
-    );
-  };
-  checkForTaggedPlayers = player => {
-    console.log(player.name + "was tagged");
-    let pos = [player.coordinates.latitude, player.coordinates.longitude];
-    const marker = L.circle(pos, {
-      color: "orange",
-      fillColor: "orange",
-      fillOpacity: 0.5,
-      radius: 2.5
-    })
-      .addTo(map)
-      .bindPopup(`${player.name} was tagged`)
-      .openPopup();
-    setTimeout(() => {
-      if (!this.state.finished && marker) {
-        console.log("removing just tagged player marker");
-        map.removeLayer(marker);
-        map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
-      }
-    }, 3000);
-  };
-  checkIfImTagged = player => {
-    if (player.id === this.props.user.UID) {
-      if (player.tagger) {
-        this.setState({ imTagger: true });
-        taggers &&
-          taggers.forEach(tagger => {
-            map.removeLayer(tagger);
-          });
-      }
     }
   };
   endGame = () => {
