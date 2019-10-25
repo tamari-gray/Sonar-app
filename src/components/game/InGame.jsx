@@ -393,7 +393,7 @@ class InGame extends Component {
     //     console.log("got player location")
     //   })
 
-    const query = playersRef(this.props.matchId).near({ center, radius: 0.025 });
+    const query = playersRef(this.props.matchId).near({ center, radius: 0.01 });
 
     query.get().then(value => {
       const geoQuery = []
