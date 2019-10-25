@@ -375,12 +375,21 @@ class InGame extends Component {
       });
   };
   tagPlayer = () => {
-    const center = new firebase.firestore.GeoPoint(
-      this.state.myPosition.lat,
-      this.state.myPosition.lng
-    ); // this players pos
+    // const center = new firebase.firestore.GeoPoint(
+    //   this.state.myPosition.lat,
+    //   this.state.myPosition.lng
+    // ); // this players pos
 
-    const query = playersRef(this.props.matchId).near({ center, radius: 2.5 });
+    let center
+
+    playerRef(this.props.matchId, this.props.user.UID)
+      .get()
+      .then(doc => {
+        center = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
+        console.log("got player location")
+      })
+
+    const query = playersRef(this.props.matchId).near({ center, radius: 5 });
 
     query.get().then(value => {
       const geoQuery = []
@@ -413,8 +422,8 @@ class InGame extends Component {
               //check for draw || single winner
               notTaggedPlayers.length > 1 ? this.setDraw(notTaggedPlayers) : this.setWinner(notTaggedPlayers[0])
             ) : (
-              this.setPlayersAsTagged(notTaggedPlayers)
-            )
+                this.setPlayersAsTagged(notTaggedPlayers)
+              )
 
           })
           .catch(e => console.log(`error checking for remaining players`))
