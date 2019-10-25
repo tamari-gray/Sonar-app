@@ -181,8 +181,6 @@ class InGame extends Component {
     });
 
     map.locate({ maxZoom: 22, watch: true, enableHighAccuracy: true });
-
-    this.state.finished && map.stopLocate()
   };
   handlePlayerQuit = () => {
     console.log("quitting", this.state.remainingPlayers.length);
@@ -296,6 +294,9 @@ class InGame extends Component {
           if (this.state.admin) {
             this.deleteMatch();
           }
+
+          //stop watching user postion
+          map && map.stopLocate()
           this.setState({ finished: true });
         }
 
