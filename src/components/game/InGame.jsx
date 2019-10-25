@@ -43,7 +43,7 @@ class InGame extends Component {
     userLocationFound: false,
     sonarTimer: 0,
     playing: false,
-    initialisingTimer: 30,
+    initialisingTimer: 60,
     geolocationError: false,
     waiting: false,
     tagger: false,
@@ -97,7 +97,7 @@ class InGame extends Component {
     }, 1000);
   };
   startInitialiseTimer = () => {
-    let timer = 5;
+    let timer = 60;
     initTimerId = setInterval(() => {
       timer = timer - 1;
       this.setState({
