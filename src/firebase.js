@@ -36,7 +36,7 @@ export function finishedMatchRef(matchId) {
   return db.collection("finishedMatches").doc(matchId);
 }
 
-export function thisUserRef(matchId, userId) {
+export function playerRef(matchId, userId) {
   return geoDb
     .collection("matches")
     .doc(matchId)
@@ -62,4 +62,15 @@ export function taggedPlayersRef(matchId) {
     .collection("matches")
     .doc(matchId)
     .collection("taggedPlayers");
+}
+
+// check if doc exists
+export function docExists(docRef) {
+  let exists = false
+  docRef.get().then((doc) => {
+    if(doc.exists) exists = true
+  })
+  .catch(e => `error, document doesnt exist`)
+
+  return exists
 }
