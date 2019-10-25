@@ -19,9 +19,6 @@ import { Redirect } from "react-router-dom";
 let map = null;
 let thisUser = null;
 
-// markers
-let taggers = [];
-
 // firebase listeners
 let DBgetMatch = null;
 let DBwatchAllPlayers = null;
