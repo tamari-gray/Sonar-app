@@ -272,7 +272,7 @@ class InGame extends Component {
           clearInterval(initTimerId);
           this.setState({ playing: true });
           this.watchForTaggedPlayers();
-          this.watchForSonardPlayers();
+          this.watchForPlayerSonars();
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
         }
@@ -387,7 +387,6 @@ class InGame extends Component {
       const geoQuery = []
       value.docs.forEach(doc => {
         if (doc.exists) {
-
           geoQuery.push(doc.data())
         }
       });
@@ -396,7 +395,7 @@ class InGame extends Component {
       console.log("not tagged query", notTaggedPlayers)
 
       //check if they are last players
-      notTaggedPlayers && (
+      notTaggedPlayers.length >= 1 && (
         playersRef(this.props.matchId)
           .get()
           .then(snapShot => {
@@ -405,14 +404,18 @@ class InGame extends Component {
             const players = []
             snapShot.forEach(p => players.push(p.data()))
             const remainingPlayers = players.filter(p => !p.tagger)
+            console.log("remaining players = ", remainingPlayers.length)
 
             // check for win
-            notTaggedPlayers.length === remainingPlayers.length && ( 
+            let win = false
+            notTaggedPlayers.length === remainingPlayers.length && (win = true)
+
+            win ? (
               //check for draw || single winner
               notTaggedPlayers.length > 1 ? this.setDraw(notTaggedPlayers) : this.setWinner(notTaggedPlayers[0])
+            ) : (
+              this.setPlayersAsTagged(notTaggedPlayers)
             )
-            // endGame
-            remainingPlayers.length === 0 ? this.endGame() : this.setPlayersAsTagged(notTaggedPlayers)
 
           })
           .catch(e => console.log(`error checking for remaining players`))
@@ -465,6 +468,7 @@ class InGame extends Component {
         draw: winners
       })
       .then(() => console.log("match drew, winners are: ", winners))
+      .then(() => this.endGame())
       .catch(e => console.log(`error when setting match draw ${e}`));
   }
   setWinner = (winner) => {
@@ -473,6 +477,7 @@ class InGame extends Component {
         winner
       })
       .then(() => console.log(`set winner ${winner.name}`))
+      .then(() => this.endGame())
       .catch(error => {
         console.log("Error setting winner", error);
       });
@@ -486,8 +491,9 @@ class InGame extends Component {
             const player = change.doc.data();
             this.setTaggedPlayerMarker(player);
 
+            // check if im tagged
             if (player.id === this.props.user.UID) {
-              this.checkIfImTagged(player);
+              this.setState({ imTagger: true, iGotTagged: true });
             }
           }
           if (change.type === "modified") {
@@ -518,17 +524,6 @@ class InGame extends Component {
         map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
       }
     }, 3000);
-  };
-  checkIfImTagged = player => {
-    if (player.id === this.props.user.UID) {
-      if (player.tagger) {
-        this.setState({ imTagger: true });
-        taggers &&
-          taggers.forEach(tagger => {
-            map.removeLayer(tagger);
-          });
-      }
-    }
   };
   sendSonar = () => {
     playersRef(this.props.matchId)
@@ -600,7 +595,7 @@ class InGame extends Component {
 
       });
   };
-  watchForSonardPlayers = () => {
+  watchForPlayerSonars = () => {
     DBwatchTaggedPlayers = sonardPlayersRef(this.props.matchId).onSnapshot(
       snapShot => {
         snapShot.docChanges().forEach(change => {
@@ -705,7 +700,8 @@ class InGame extends Component {
       quit,
       showPlayBtn,
       quitter,
-      showQuitOverlay
+      showQuitOverlay,
+      iGotTagged
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -841,6 +837,11 @@ class InGame extends Component {
             <p> {remainingPlayers.length} players left! </p>
           )}
           {quitter && <p>{quitter} has quit!</p>}
+          {/* {
+            iGotTagged && (setTimeout(() => {
+              <p> you were tagged!</p>
+            }, 3000))
+          } */}
         </Box>
       );
     }
