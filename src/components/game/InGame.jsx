@@ -147,7 +147,7 @@ class InGame extends Component {
         thisUser.setLatLng(newLatLng);
       }
 
-      if (boundary === null && map !== null) {
+      if (boundary === null && map !== null && this.state.admin) {
         console.log("setting default boundary pos")
         // set boundary
         boundary = L.circle(
