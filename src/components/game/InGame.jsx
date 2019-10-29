@@ -11,13 +11,15 @@ import {
   playersRef,
   sonardPlayersRef,
   taggedPlayersRef,
-  finishedMatchRef
+  finishedMatchRef,
+  playerRefExists
 } from "../../firebase";
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
 
 let map = null;
 let thisUser = null;
+let boundary = null;
 
 // firebase listeners
 let DBgetMatch = null;
@@ -120,7 +122,7 @@ class InGame extends Component {
       maxNativeZoom: 22,
       zoomControl: true
     }).fitWorld();
-    map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+    map.setView([this.state.boundary.lat, this.state.boundary.lng], 17);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       detectRetina: true,
@@ -128,16 +130,7 @@ class InGame extends Component {
         '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    // set boundary
-    L.circle(
-      [this.state.boundary.lat, this.state.boundary.lng],
-      {
-        color: "blue",
-        fillColor: "#f03",
-        fillOpacity: 0.3,
-        radius: 100
-      }
-    ).addTo(map);
+
 
     map.on("locationfound", e => {
       this.setState({ myPosition: e.latlng });
@@ -158,13 +151,33 @@ class InGame extends Component {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng);
       }
+
+      if (boundary === null && map !== null) {
+        console.log("setting default boundary pos")
+        // set boundary
+        boundary = L.circle(
+          e.latlng,
+          {
+            color: "blue",
+            fillColor: "#f03",
+            fillOpacity: 0.3,
+            radius: 100
+          }
+        ).addTo(map);
+      }
+
+      
       // update users location in DB
-      playerRef(this.props.matchId, this.props.user.UID)
-        .update({
-          coordinates: pos
-        })
-        .then(() => console.log("watching user position"))
-        .catch(e => console.log("error watching user position", e));
+      playerRefExists(this.props.matchId, this.props.user.UID) &&
+        playerRef(this.props.matchId, this.props.user.UID)
+          .update({
+            coordinates: pos
+          })
+          .then(() => {
+            console.log("watching user position")
+
+          })
+          .catch(e => console.log("error watching user position", e));
     });
 
     map.on("locationerror", e => {
@@ -250,6 +263,7 @@ class InGame extends Component {
           this.setState({ waiting: true });
           if (doc.data().admin.id === this.props.user.UID) {
             this.watchPlayersJoin();
+            this.setBoundary()
           }
         } else if (doc.data().waiting === false) {
           this.setState({ waiting: false });
@@ -324,6 +338,44 @@ class InGame extends Component {
       }
     });
   };
+
+  setBoundary = () => {
+    console.log("setting boundary")
+    // change boundary position
+    // boundary.on({
+    //   click: function () {
+    //     console.log('holding boundary')
+    //     map.on('mousemove', (e) =>  {
+    //     console.log('moving boundary')
+    //       boundary.setLatLng(e.latlng);
+    //     });
+
+    //     boundary.on({
+    //       mousedown: function () {
+    //         console.log('placing boundary')
+    //         map.removeEventListener();
+    //       }
+    //     })
+    //   }
+    // });
+
+    let boundaryMoving = false
+    boundary.on({
+      click: function () {
+        boundaryMoving = !boundaryMoving
+
+        boundaryMoving ? map.on('mousemove', function (e) {
+          boundary.setLatLng(e.latlng);
+        }) : (
+          map.removeEventListener('mousemove')
+        )
+      }
+   }); 
+  //  boundary.on('click',function(e){
+  //    map.removeEventListener('mousemove');
+  //  })
+
+  }
   watchPlayersJoin = () => {
     DBwatchPlayersJoin = playersRef(this.props.matchId).onSnapshot(snap => {
       const size = snap.size; // will return the collection size
@@ -385,7 +437,7 @@ class InGame extends Component {
     //   176.861232
     //   )
 
-      // get player location
+    // get player location
     // playerRef(this.props.matchId, this.props.user.UID)
     //   .get()
     //   .then(doc => {
@@ -533,7 +585,7 @@ class InGame extends Component {
       if (!this.state.finished && marker) {
         console.log("removing just tagged player marker");
         map.removeLayer(marker);
-        map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+        map.setView([this.state.boundary.lat, this.state.boundary.lng], 17);
       }
     }, 3000);
   };
@@ -558,7 +610,7 @@ class InGame extends Component {
             .addTo(map)
             .bindPopup("Tagger")
             .openPopup();
-          map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+          map.setView([this.state.boundary.lat, this.state.boundary.lng], 17);
           setTimeout(() => {
             if (!this.state.finished && marker) {
               map.removeLayer(marker);
