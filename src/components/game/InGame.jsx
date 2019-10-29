@@ -338,7 +338,7 @@ class InGame extends Component {
     });
   };
   setBoundary = () => {
-    if (this.state.waiting) {
+    if (this.state.waiting && this.state.admin) {
       console.log("setting boundary")
       let boundaryMoving = false
       boundary.on({
@@ -385,11 +385,14 @@ class InGame extends Component {
   };
   initGame = () => { // choose tagger and set boundary location
 
-    matchRef.get().then(doc => {
+    // set boundary in db
+    matchRef(this.props.matchId).get().then(doc => {
       if (doc.exists) {
-        matchRef.update({
-          boundary: this.state.boundary
+        matchRef(this.props.matchId).update({
+          boundary: [this.state.boundary.lat, this.state.boundary.lng]
         })
+        .then(() => console.log('set boundary position in db'))
+        .catch(e => console.log(`error setting boundary position in db ${e}`))
       }
     })
 
