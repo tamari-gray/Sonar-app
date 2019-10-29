@@ -341,24 +341,6 @@ class InGame extends Component {
 
   setBoundary = () => {
     console.log("setting boundary")
-    // change boundary position
-    // boundary.on({
-    //   click: function () {
-    //     console.log('holding boundary')
-    //     map.on('mousemove', (e) =>  {
-    //     console.log('moving boundary')
-    //       boundary.setLatLng(e.latlng);
-    //     });
-
-    //     boundary.on({
-    //       mousedown: function () {
-    //         console.log('placing boundary')
-    //         map.removeEventListener();
-    //       }
-    //     })
-    //   }
-    // });
-
     let boundaryMoving = false
     boundary.on({
       click: function () {
@@ -371,9 +353,6 @@ class InGame extends Component {
         )
       }
    }); 
-  //  boundary.on('click',function(e){
-  //    map.removeEventListener('mousemove');
-  //  })
 
   }
   watchPlayersJoin = () => {
