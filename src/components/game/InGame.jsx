@@ -142,6 +142,7 @@ class InGame extends Component {
           .addTo(map)
           .bindPopup(this.props.user.username)
           .openPopup();
+          map.setView(e.latlng, 17);
       } else if (thisUser) {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng);
@@ -149,7 +150,7 @@ class InGame extends Component {
 
       if (boundary === null && map !== null && this.state.admin) {
         console.log("setting default boundary pos")
-        // set boundary
+        // set default boundary
         boundary = L.circle(
           e.latlng,
           {
@@ -160,10 +161,12 @@ class InGame extends Component {
           }
         ).addTo(map)
 
+        this.setState({boundary: e.latlng})
+
         map.setView(e.latlng, 17);
 
-        this.setBoundary()
-      }
+        this.adminSetBoundary()
+      } 
 
 
       // update users location in DB
@@ -272,6 +275,8 @@ class InGame extends Component {
         if (doc.data().initialising) {
           this.setState({ initialising: true });
           this.startInitialiseTimer();
+          doc.data().boundary && this.setBoundary(doc.data().boundary)
+
         } else if (doc.data().initialising === false) {
           this.setState({ initialising: false });
         }
@@ -280,8 +285,11 @@ class InGame extends Component {
         if (doc.data().playing) {
           clearInterval(initTimerId);
           this.setState({ playing: true });
+
           this.watchForTaggedPlayers();
           this.watchForPlayerSonars();
+
+
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
         }
@@ -337,7 +345,7 @@ class InGame extends Component {
       }
     });
   };
-  setBoundary = () => {
+  adminSetBoundary = () => {
     if (this.state.waiting && this.state.admin) {
       console.log("setting boundary")
       let boundaryMoving = false
@@ -355,6 +363,20 @@ class InGame extends Component {
       });
 
     }
+  }
+  setBoundary = (pos) => {
+    console.log("setting boundary from db", pos)
+    boundary = L.circle(
+      pos,
+      {
+        color: "blue",
+        fillColor: "#f03",
+        fillOpacity: 0.3,
+        radius: 100
+      }
+    ).addTo(map)
+
+    map.setView(pos, 17);
   }
   watchPlayersJoin = () => {
     DBwatchPlayersJoin = playersRef(this.props.matchId).onSnapshot(snap => {
