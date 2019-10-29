@@ -33,10 +33,7 @@ let gameTimerId = null;
 
 class InGame extends Component {
   state = {
-    boundary: {
-      lat: -39.637652, // mayfair primary location
-      lng: 176.860973
-    },
+    boundary: null,
     position: null,
     zoom: 18,
     admin: false,
@@ -122,7 +119,6 @@ class InGame extends Component {
       maxNativeZoom: 22,
       zoomControl: true
     }).fitWorld();
-    map.setView([this.state.boundary.lat, this.state.boundary.lng], 17);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       detectRetina: true,
@@ -134,7 +130,6 @@ class InGame extends Component {
 
     map.on("locationfound", e => {
       this.setState({ myPosition: e.latlng });
-      // const point = geo.point(e.latlng.lat, e.latlng.lng)
       const pos = new firebase.firestore.GeoPoint(e.latlng.lat, e.latlng.lng);
       if (thisUser === null && map !== null) {
         thisUser = L.circle(e.latlng, {
@@ -163,10 +158,14 @@ class InGame extends Component {
             fillOpacity: 0.3,
             radius: 100
           }
-        ).addTo(map);
+        ).addTo(map)
+
+        map.setView(e.latlng, 17);
+
+        this.setBoundary()
       }
 
-      
+
       // update users location in DB
       playerRefExists(this.props.matchId, this.props.user.UID) &&
         playerRef(this.props.matchId, this.props.user.UID)
@@ -263,7 +262,7 @@ class InGame extends Component {
           this.setState({ waiting: true });
           if (doc.data().admin.id === this.props.user.UID) {
             this.watchPlayersJoin();
-            this.setBoundary()
+            // this.setBoundary()
           }
         } else if (doc.data().waiting === false) {
           this.setState({ waiting: false });
@@ -338,22 +337,24 @@ class InGame extends Component {
       }
     });
   };
-
   setBoundary = () => {
-    console.log("setting boundary")
-    let boundaryMoving = false
-    boundary.on({
-      click: function () {
-        boundaryMoving = !boundaryMoving
+    if (this.state.waiting) {
+      console.log("setting boundary")
+      let boundaryMoving = false
+      boundary.on({
+        click: () => {
+          boundaryMoving = !boundaryMoving
 
-        boundaryMoving ? map.on('mousemove', function (e) {
-          boundary.setLatLng(e.latlng);
-        }) : (
-          map.removeEventListener('mousemove')
-        )
-      }
-   }); 
+          boundaryMoving ? map.on('mousemove', (e) => {
+            boundary.setLatLng(e.latlng);
+            this.setState({ boundary: e.latlng })
+          }) : (
+              map.removeEventListener('mousemove')
+            )
+        }
+      });
 
+    }
   }
   watchPlayersJoin = () => {
     DBwatchPlayersJoin = playersRef(this.props.matchId).onSnapshot(snap => {
@@ -382,7 +383,16 @@ class InGame extends Component {
         console.error("Error removing match from db: ", e);
       });
   };
-  chooseTagger = () => {
+  initGame = () => { // choose tagger and set boundary location
+
+    matchRef.get().then(doc => {
+      if (doc.exists) {
+        matchRef.update({
+          boundary: this.state.boundary
+        })
+      }
+    })
+
     let players = [];
     // choose tagger
     playersRef(this.props.matchId)
@@ -830,6 +840,9 @@ class InGame extends Component {
           {// if waiting and admin
             admin && waiting && (
               <div>
+                {
+                  <p>tap boundary to move and place it</p>
+                }
                 {showPlayBtn ? (
                   <p>Press play when all players have joined game.</p>
                 ) : (
@@ -838,7 +851,7 @@ class InGame extends Component {
 
                 <Box align="center" direction="row">
                   {showPlayBtn && (
-                    <Button onClick={this.chooseTagger} label="Play!" primary />
+                    <Button onClick={this.initGame} label="Play!" primary />
                   )}
                   <Button onClick={this.quitGame} label="Quit" secondary />
                 </Box>
