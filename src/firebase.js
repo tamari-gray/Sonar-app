@@ -43,6 +43,22 @@ export function playerRef(matchId, userId) {
     .collection("players")
     .doc(userId);
 }
+
+export function playerRefExists(matchId, userId) { 
+  let exists = false
+  geoDb
+    .collection("matches")
+    .doc(matchId)
+    .collection("players")
+    .doc(userId)
+    .get()
+    .then(doc => {
+      doc.exists ? exists = true : exists = false
+    })
+    .catch(e => console.log(`error checking if playersRef exists ${e}`))
+
+    return exists
+}
 export function playersRef(matchId) {
   return geoDb
     .collection("matches")
