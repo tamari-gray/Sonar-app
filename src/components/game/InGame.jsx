@@ -204,7 +204,7 @@ class InGame extends Component {
         .then(() => {
           this.setState({ quit: true });
           console.log("succesfully left game");
-          matchRef
+          matchRef(this.props.matchId)
             .update({
               quitter: this.props.user.username
             })
