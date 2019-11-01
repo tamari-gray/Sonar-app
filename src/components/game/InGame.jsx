@@ -67,8 +67,8 @@ class InGame extends Component {
       }, 10000);
     });
     if (this.props) {
-      this.initMap();
       this.getMatch(); // toggle play btn
+      this.initMap();
     }
   }
   startTimer = duration => {
@@ -96,7 +96,7 @@ class InGame extends Component {
     }, 1000);
   };
   startInitialiseTimer = () => {
-    let timer = 60;
+    let timer = 5;
     initTimerId = setInterval(() => {
       timer = timer - 1;
       this.setState({
@@ -142,13 +142,13 @@ class InGame extends Component {
           .addTo(map)
           .bindPopup(this.props.user.username)
           .openPopup();
-          map.setView(e.latlng, 17);
+        map.setView(e.latlng, 17);
       } else if (thisUser) {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng);
       }
 
-      if (boundary === null && map !== null && this.state.admin) {
+      if (boundary === null && map !== null ) {
         console.log("setting default boundary pos")
         // set default boundary
         boundary = L.circle(
@@ -161,23 +161,19 @@ class InGame extends Component {
           }
         ).addTo(map)
 
-        this.setState({boundary: e.latlng})
+        this.setState({ boundary: e.latlng })
 
         map.setView(e.latlng, 17);
 
         this.adminSetBoundary()
-      } 
+      }
 
 
       // update users location in DB
-      playerRefExists(this.props.matchId, this.props.user.UID) &&
+      // playerRefExists(this.props.matchId, this.props.user.UID) &&
         playerRef(this.props.matchId, this.props.user.UID)
           .update({
             coordinates: pos
-          })
-          .then(() => {
-            console.log("watching user position")
-
           })
           .catch(e => console.log("error watching user position", e));
     });
@@ -255,6 +251,7 @@ class InGame extends Component {
   getMatch = () => {
     DBgetMatch = matchRef(this.props.matchId).onSnapshot(doc => {
       if (doc.exists) {
+        this.setState({ gotMatch: true })
         // check if user is admin
         if (doc.data().admin.id === this.props.user.UID) {
           this.setState({ admin: doc.data().admin });
@@ -346,26 +343,29 @@ class InGame extends Component {
     });
   };
   adminSetBoundary = () => {
-    if (this.state.waiting && this.state.admin) {
-      console.log("setting boundary")
-      let boundaryMoving = false
-      boundary.on({
-        click: () => {
-          boundaryMoving = !boundaryMoving
+    // if (this.state.waiting) {
+    console.log("setting boundary")
+    let boundaryMoving = false
+    boundary.on({
+      'mousedown': () => {
+        map.removeEventListener('mousedown')
+        console.log('mousedown')
+        boundaryMoving = !boundaryMoving
 
-          boundaryMoving ? map.on('mousemove', (e) => {
-            boundary.setLatLng(e.latlng);
-            this.setState({ boundary: e.latlng })
-          }) : (
-              map.removeEventListener('mousemove')
-            )
-        }
-      });
+        boundaryMoving ? map.on('mousemove', (e) => {
+          boundary.setLatLng(e.latlng);
+          this.setState({ boundary: e.latlng })
+        }) : (
+            map.removeEventListener('mousemove')
+          )
+      }
+    });
 
-    }
+    // }
   }
   setBoundary = (pos) => {
     console.log("setting boundary from db", pos)
+    boundary && map.removeLayer(boundary)
     boundary = L.circle(
       pos,
       {
@@ -413,8 +413,8 @@ class InGame extends Component {
         matchRef(this.props.matchId).update({
           boundary: [this.state.boundary.lat, this.state.boundary.lng]
         })
-        .then(() => console.log('set boundary position in db'))
-        .catch(e => console.log(`error setting boundary position in db ${e}`))
+          .then(() => console.log('set boundary position in db'))
+          .catch(e => console.log(`error setting boundary position in db ${e}`))
       }
     })
 
