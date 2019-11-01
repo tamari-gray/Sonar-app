@@ -18,7 +18,7 @@ class Lobby extends Component {
 
   componentDidMount() {
     navigator.geolocation.getCurrentPosition((position) => {
-      console.log('got position')
+      console.log('got position', position)
       if (this.props.user.UID && position) {
         this.setState({ position })
         this.getMatches(this.props.user.UID, position);
