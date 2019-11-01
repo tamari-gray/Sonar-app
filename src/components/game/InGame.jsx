@@ -617,6 +617,7 @@ class InGame extends Component {
     }, 5000);
   };
   sendSonar = () => {
+    this.setState({sentSonar: true})
     playersRef(this.props.matchId)
       .where("tagger", "==", true)
       .get()
@@ -798,7 +799,8 @@ class InGame extends Component {
       showQuitOverlay,
       iGotTagged,
       iJustTagged,
-      tagFail
+      tagFail,
+      sentSonar
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -917,14 +919,17 @@ class InGame extends Component {
             </p>
           )}
           {!imTagger && playing && (
-            <Button
-              primary
-              style={{ padding: "0.8em" }}
-              onClick={this.sendSonar}
-              label="send sonar"
-            />
+            sentSonar ? (
+              <Alert message={`no players within 2m. tagging unsuccessfull`} timer={true} clear={() => this.setState({ sentSonar: null })} />
+            ) : (
+              <Button
+                primary
+                style={{ padding: "0.8em" }}
+                onClick={this.sendSonar}
+                label="send sonar"
+              />
+            )
           )}
-          {sonarTimer !== 0 && "sonar active for " + sonarTimer + " seconds"}
           {imTagger && playing && (
             <Button
               primary
