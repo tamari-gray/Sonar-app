@@ -16,6 +16,7 @@ import {
 } from "../../firebase";
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
+import Alert from "./Alert";
 
 let map = null;
 let thisUser = null;
@@ -458,23 +459,11 @@ class InGame extends Component {
       });
   };
   tagPlayer = () => {
+
     const center = new firebase.firestore.GeoPoint(
       this.state.myPosition.lat,
       this.state.myPosition.lng
     ); // this players pos
-
-    // let center = new firebase.firestore.GeoPoint(
-    //   -39.637449,
-    //   176.861232
-    //   )
-
-    // get player location
-    // playerRef(this.props.matchId, this.props.user.UID)
-    //   .get()
-    //   .then(doc => {
-    //     // center = [doc.data().coordinates.latitude, doc.data().coordinates.longitude]
-    //     console.log("got player location")
-    //   })
 
     const query = playersRef(this.props.matchId).near({ center, radius: 0.02 });
 
@@ -488,6 +477,10 @@ class InGame extends Component {
       console.log("geoQuery ", geoQuery)
       const notTaggedPlayers = geoQuery.filter(p => !p.tagger)
       console.log("not tagged query", notTaggedPlayers)
+
+      // reset notification
+      this.setState({ tagFail: false })
+      notTaggedPlayers.length === 0 && this.setState({ tagFail: true })
 
       //check if they are last players
       notTaggedPlayers.length >= 1 && (
@@ -518,6 +511,9 @@ class InGame extends Component {
     });
   };
   setPlayersAsTagged = players => {
+
+    this.setState({ iJustTagged: players })
+
     // set players as tagged
     players.forEach((player) => {
 
@@ -618,9 +614,10 @@ class InGame extends Component {
         map.removeLayer(marker);
         map.setView(this.state.boundary, 17);
       }
-    }, 3000);
+    }, 5000);
   };
   sendSonar = () => {
+    this.setState({sentSonar: true})
     playersRef(this.props.matchId)
       .where("tagger", "==", true)
       .get()
@@ -800,7 +797,10 @@ class InGame extends Component {
       showPlayBtn,
       quitter,
       showQuitOverlay,
-      iGotTagged
+      iGotTagged,
+      iJustTagged,
+      tagFail,
+      sentSonar
     } = this.state;
     if (geolocationError) {
       return <Redirect to={routes.PROFILE} />;
@@ -919,14 +919,17 @@ class InGame extends Component {
             </p>
           )}
           {!imTagger && playing && (
-            <Button
-              primary
-              style={{ padding: "0.8em" }}
-              onClick={this.sendSonar}
-              label="send sonar"
-            />
+            sentSonar ? (
+              <Alert message={`Sonar sent. Tagger's can see your position! `} timer={true} clear={() => this.setState({ sentSonar: null })} />
+            ) : (
+              <Button
+                primary
+                style={{ padding: "0.8em" }}
+                onClick={this.sendSonar}
+                label="send sonar"
+              />
+            )
           )}
-          {sonarTimer !== 0 && "sonar active for " + sonarTimer + " seconds"}
           {imTagger && playing && (
             <Button
               primary
@@ -939,11 +942,21 @@ class InGame extends Component {
             <p> {remainingPlayers.length} players left! </p>
           )}
           {quitter && <p>{quitter} has quit!</p>}
-          {/* {
-            iGotTagged && (setTimeout(() => {
-              <p> you were tagged!</p>
-            }, 3000))
-          } */}
+          {
+            iGotTagged && <Alert message="you got tagged! you are now a tagger" clear={() => this.setState({ iGotTagged: null })} />
+          }
+          {
+            iJustTagged && (
+              iJustTagged.map(player => {
+                return <Alert key={player.id} message={`you tagged ${player.name}`} clear={() => this.setState({ iJustTagged: null })} />
+              })
+            )
+          }
+          {
+            tagFail && (
+              <Alert message={`no players within 2m. tagging unsuccessfull`} timer={true} clear={() => this.setState({ tagFail: null })} />
+            )
+          }
         </Box>
       );
     }
