@@ -11,13 +11,15 @@ import {
   playersRef,
   sonardPlayersRef,
   taggedPlayersRef,
-  finishedMatchRef
+  finishedMatchRef,
+  playerRefExists
 } from "../../firebase";
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
 
 let map = null;
 let thisUser = null;
+let boundary = null;
 
 // firebase listeners
 let DBgetMatch = null;
@@ -31,10 +33,7 @@ let gameTimerId = null;
 
 class InGame extends Component {
   state = {
-    boundary: {
-      lat: -39.637652, // mayfair primary location
-      lng: 176.860973
-    },
+    boundary: null,
     position: null,
     zoom: 18,
     admin: false,
@@ -71,15 +70,18 @@ class InGame extends Component {
       matchRef(this.props.matchId)
         .get()
         .then(doc => {
-          if (doc.data().admin.id === this.props.user.UID) {
-            this.setState({ admin: true })
+          if (doc.exists) {
+            if (doc.data().admin.id === this.props.user.UID) {
+              console.log('player is set as admin')
+              this.setState({ admin: true })
+            }
           }
         })
         .then(() => {
           this.initMap();
         })
 
-        this.getMatch(); // toggle play btn
+      this.getMatch(); // toggle play btn
     }
   }
   startTimer = duration => {
@@ -107,7 +109,7 @@ class InGame extends Component {
     }, 1000);
   };
   startInitialiseTimer = () => {
-    let timer = 60;
+    let timer = 5;
     initTimerId = setInterval(() => {
       timer = timer - 1;
       this.setState({
@@ -137,20 +139,10 @@ class InGame extends Component {
         '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    // set boundary
-    L.circle(
-      [this.state.boundary.lat, this.state.boundary.lng],
-      {
-        color: "blue",
-        fillColor: "#f03",
-        fillOpacity: 0.3,
-        radius: 100
-      }
-    ).addTo(map);
+
 
     map.on("locationfound", e => {
       this.setState({ myPosition: e.latlng });
-      // const point = geo.point(e.latlng.lat, e.latlng.lng)
       const pos = new firebase.firestore.GeoPoint(e.latlng.lat, e.latlng.lng);
       if (thisUser === null && map !== null) {
         thisUser = L.circle(e.latlng, {
@@ -163,16 +155,39 @@ class InGame extends Component {
           .addTo(map)
           .bindPopup(this.props.user.username)
           .openPopup();
+        map.setView(e.latlng, 17);
       } else if (thisUser) {
         let newLatLng = new L.LatLng(e.latlng.lat, e.latlng.lng);
         thisUser.setLatLng(newLatLng);
       }
+
+      if (boundary === null && map !== null && this.state.admin) {
+        console.log("setting default boundary pos")
+        // set default boundary
+        boundary = L.circle(
+          e.latlng,
+          {
+            color: "blue",
+            fillColor: "#f03",
+            fillOpacity: 0.3,
+            radius: 100
+          }
+        ).addTo(map)
+
+        this.setState({ boundary: e.latlng })
+
+        map.setView(e.latlng, 17);
+
+        this.adminSetBoundary()
+      }
+
+
       // update users location in DB
+      // playerRefExists(this.props.matchId, this.props.user.UID) && console.log("player ref exists")
       playerRef(this.props.matchId, this.props.user.UID)
         .update({
           coordinates: pos
         })
-        .then(() => console.log("watching user position"))
         .catch(e => console.log("error watching user position", e));
     });
 
@@ -198,7 +213,7 @@ class InGame extends Component {
         .then(() => {
           this.setState({ quit: true });
           console.log("succesfully left game");
-          matchRef
+          matchRef(this.props.matchId)
             .update({
               quitter: this.props.user.username
             })
@@ -249,6 +264,7 @@ class InGame extends Component {
   getMatch = () => {
     DBgetMatch = matchRef(this.props.matchId).onSnapshot(doc => {
       if (doc.exists) {
+        this.setState({ gotMatch: true })
         // check if user is admin
         if (doc.data().admin.id === this.props.user.UID) {
           this.setState({ admin: doc.data().admin });
@@ -259,6 +275,7 @@ class InGame extends Component {
           this.setState({ waiting: true });
           if (doc.data().admin.id === this.props.user.UID) {
             this.watchPlayersJoin();
+            // this.setBoundary()
           }
         } else if (doc.data().waiting === false) {
           this.setState({ waiting: false });
@@ -268,6 +285,8 @@ class InGame extends Component {
         if (doc.data().initialising) {
           this.setState({ initialising: true });
           this.startInitialiseTimer();
+          doc.data().boundary && this.setBoundary(doc.data().boundary)
+
         } else if (doc.data().initialising === false) {
           this.setState({ initialising: false });
         }
@@ -276,8 +295,13 @@ class InGame extends Component {
         if (doc.data().playing) {
           clearInterval(initTimerId);
           this.setState({ playing: true });
+
           this.watchForTaggedPlayers();
           this.watchForPlayerSonars();
+
+          //if user refreshes tab reset boundary
+          map && this.state.boundary === null && doc.data().boundary && this.setBoundary(doc.data().boundary)
+
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
         }
@@ -333,6 +357,44 @@ class InGame extends Component {
       }
     });
   };
+  adminSetBoundary = () => {
+    // if (this.state.waiting) {
+    console.log("setting boundary")
+    let boundaryMoving = false
+    boundary.on({
+      'mousedown': () => {
+        map.removeEventListener('mousedown')
+        console.log('mousedown')
+        boundaryMoving = !boundaryMoving
+
+        boundaryMoving ? map.on('mousemove', (e) => {
+          boundary.setLatLng(e.latlng);
+          this.setState({ boundary: e.latlng })
+        }) : (
+            map.removeEventListener('mousemove')
+          )
+      }
+    });
+
+    // }
+  }
+  setBoundary = (pos) => {
+    this.setState({ boundary: pos })
+
+    console.log("setting boundary from db", pos)
+    boundary && map.removeLayer(boundary)
+    boundary = L.circle(
+      pos,
+      {
+        color: "blue",
+        fillColor: "#f03",
+        fillOpacity: 0.3,
+        radius: 100
+      }
+    ).addTo(map)
+
+    map.setView(pos, 17);
+  }
   watchPlayersJoin = () => {
     DBwatchPlayersJoin = playersRef(this.props.matchId).onSnapshot(snap => {
       const size = snap.size; // will return the collection size
@@ -360,7 +422,19 @@ class InGame extends Component {
         console.error("Error removing match from db: ", e);
       });
   };
-  chooseTagger = () => {
+  initGame = () => { // choose tagger and set boundary location
+
+    // set boundary in db
+    matchRef(this.props.matchId).get().then(doc => {
+      if (doc.exists) {
+        matchRef(this.props.matchId).update({
+          boundary: [this.state.boundary.lat, this.state.boundary.lng]
+        })
+          .then(() => console.log('set boundary position in db'))
+          .catch(e => console.log(`error setting boundary position in db ${e}`))
+      }
+    })
+
     let players = [];
     // choose tagger
     playersRef(this.props.matchId)
@@ -542,7 +616,7 @@ class InGame extends Component {
       if (!this.state.finished && marker) {
         console.log("removing just tagged player marker");
         map.removeLayer(marker);
-        map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+        map.setView(this.state.boundary, 17);
       }
     }, 3000);
   };
@@ -567,7 +641,7 @@ class InGame extends Component {
             .addTo(map)
             .bindPopup("Tagger")
             .openPopup();
-          map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+          map.setView(this.state.boundary, 17);
           setTimeout(() => {
             if (!this.state.finished && marker) {
               map.removeLayer(marker);
@@ -650,7 +724,7 @@ class InGame extends Component {
         if (!this.state.finished && marker) {
           console.log("removing just sonard player marker");
           map.removeLayer(marker);
-          map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+          this.state.boundary && map.setView(this.state.boundary, 19);
         }
       }, 5000);
     }
@@ -692,7 +766,11 @@ class InGame extends Component {
     DBgetMatch && DBgetMatch();
     DBwatchPlayersJoin && DBwatchPlayersJoin();
 
+    boundary && map.removeLayer(boundary)
+    map && map.stopLocate()
+
     map = null;
+    boundary = null;
     thisUser = null;
     DBgetMatch = null;
     DBwatchAllPlayers = null;
@@ -808,6 +886,9 @@ class InGame extends Component {
           {// if waiting and admin
             admin && waiting && (
               <div>
+                {
+                  <p>tap boundary to move and place it</p>
+                }
                 {showPlayBtn ? (
                   <p>Press play when all players have joined game.</p>
                 ) : (
@@ -816,7 +897,7 @@ class InGame extends Component {
 
                 <Box align="center" direction="row">
                   {showPlayBtn && (
-                    <Button onClick={this.chooseTagger} label="Play!" primary />
+                    <Button onClick={this.initGame} label="Play!" primary />
                   )}
                   <Button onClick={this.quitGame} label="Quit" secondary />
                 </Box>
