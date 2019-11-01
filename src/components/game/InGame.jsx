@@ -70,15 +70,18 @@ class InGame extends Component {
       matchRef(this.props.matchId)
         .get()
         .then(doc => {
-          if (doc.data().admin.id === this.props.user.UID) {
-            this.setState({ admin: true })
+          if (doc.exists) {
+            if (doc.data().admin.id === this.props.user.UID) {
+              console.log('player is set as admin')
+              this.setState({ admin: true })
+            }
           }
         })
         .then(() => {
           this.initMap();
         })
 
-        this.getMatch(); // toggle play btn
+      this.getMatch(); // toggle play btn
     }
   }
   startTimer = duration => {
@@ -158,7 +161,7 @@ class InGame extends Component {
         thisUser.setLatLng(newLatLng);
       }
 
-      if (boundary === null && map !== null && this.state.admin ) {
+      if (boundary === null && map !== null && this.state.admin) {
         console.log("setting default boundary pos")
         // set default boundary
         boundary = L.circle(
@@ -180,12 +183,12 @@ class InGame extends Component {
 
 
       // update users location in DB
-      // playerRefExists(this.props.matchId, this.props.user.UID) &&
-        playerRef(this.props.matchId, this.props.user.UID)
-          .update({
-            coordinates: pos
-          })
-          .catch(e => console.log("error watching user position", e));
+      // playerRefExists(this.props.matchId, this.props.user.UID) && console.log("player ref exists")
+      playerRef(this.props.matchId, this.props.user.UID)
+        .update({
+          coordinates: pos
+        })
+        .catch(e => console.log("error watching user position", e));
     });
 
     map.on("locationerror", e => {
@@ -297,7 +300,7 @@ class InGame extends Component {
           this.watchForPlayerSonars();
 
           //if user refreshes tab reset boundary
-          this.state.boundary === null && doc.data().boundary && this.setBoundary(doc.data().boundary)
+          map && this.state.boundary === null && doc.data().boundary && this.setBoundary(doc.data().boundary)
 
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
@@ -376,7 +379,7 @@ class InGame extends Component {
     // }
   }
   setBoundary = (pos) => {
-    this.setState({boundary: pos})
+    this.setState({ boundary: pos })
 
     console.log("setting boundary from db", pos)
     boundary && map.removeLayer(boundary)
@@ -763,7 +766,11 @@ class InGame extends Component {
     DBgetMatch && DBgetMatch();
     DBwatchPlayersJoin && DBwatchPlayersJoin();
 
+    boundary && map.removeLayer(boundary)
+    map && map.stopLocate()
+
     map = null;
+    boundary = null;
     thisUser = null;
     DBgetMatch = null;
     DBwatchAllPlayers = null;
