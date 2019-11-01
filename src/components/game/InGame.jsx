@@ -68,8 +68,18 @@ class InGame extends Component {
       }, 10000);
     });
     if (this.props) {
-      this.initMap();
-      this.getMatch(); // toggle play btn
+      matchRef(this.props.matchId)
+        .get()
+        .then(doc => {
+          if (doc.data().admin.id === this.props.user.UID) {
+            this.setState({ admin: true })
+          }
+        })
+        .then(() => {
+          this.initMap();
+        })
+
+        this.getMatch(); // toggle play btn
     }
   }
   startTimer = duration => {
@@ -120,7 +130,6 @@ class InGame extends Component {
       maxNativeZoom: 22,
       zoomControl: true
     }).fitWorld();
-    map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       detectRetina: true,
@@ -385,7 +394,7 @@ class InGame extends Component {
     //   176.861232
     //   )
 
-      // get player location
+    // get player location
     // playerRef(this.props.matchId, this.props.user.UID)
     //   .get()
     //   .then(doc => {
