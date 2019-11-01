@@ -920,7 +920,7 @@ class InGame extends Component {
           )}
           {!imTagger && playing && (
             sentSonar ? (
-              <Alert message={`no players within 2m. tagging unsuccessfull`} timer={true} clear={() => this.setState({ sentSonar: null })} />
+              <Alert message={`Sonar sent. Tagger's can see your position! `} timer={true} clear={() => this.setState({ sentSonar: null })} />
             ) : (
               <Button
                 primary
