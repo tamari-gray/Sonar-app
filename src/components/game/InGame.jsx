@@ -613,7 +613,7 @@ class InGame extends Component {
       if (!this.state.finished && marker) {
         console.log("removing just tagged player marker");
         map.removeLayer(marker);
-        map.setView([this.state.boundary.lat, this.state.boundary.lng], 17);
+        map.setView(this.state.boundary, 17);
       }
     }, 3000);
   };
@@ -721,7 +721,7 @@ class InGame extends Component {
         if (!this.state.finished && marker) {
           console.log("removing just sonard player marker");
           map.removeLayer(marker);
-          this.state.boundary && map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+          this.state.boundary && map.setView(this.state.boundary, 19);
         }
       }, 5000);
     }
