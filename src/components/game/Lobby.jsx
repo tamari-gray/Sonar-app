@@ -12,24 +12,38 @@ class Lobby extends Component {
   state = {
     password: "",
     redirect: false,
-    matches: [],
+    matches: false,
     matchId: false
   };
 
   componentDidMount() {
-    if (this.props.user.UID) {
-      this.getMatches(this.props.user.UID);
-    }
+    navigator.geolocation.getCurrentPosition((position) => {
+      console.log('got position', position)
+      if (this.props.user.UID && position) {
+        this.setState({ position })
+        this.getMatches(this.props.user.UID, position);
+      }
+    });
+
   }
 
   componentWillUnmount() {
     // cancel get matches
-    DBGetMatches();
+    DBGetMatches && DBGetMatches();
     DBGetMatches = null;
   }
 
-  getMatches = userId => {
-    DBGetMatches = geoDb.collection("matches").onSnapshot(snapshot => {
+  getMatches = (userId, pos) => {
+
+    const radius = 1
+
+    const query = geoDb.collection("matches").near({
+      center: new firebase.firestore.GeoPoint(pos.coords.latitude, pos.coords.longitude),
+      radius
+    });
+
+
+    DBGetMatches = query.onSnapshot(snapshot => {
       const matches = [];
       snapshot.forEach(doc => {
         const players = [];
@@ -55,6 +69,7 @@ class Lobby extends Component {
           });
         }
       });
+      console.log("matches within 1km ", matches)
       this.setState({ matches });
     });
   };
@@ -68,7 +83,7 @@ class Lobby extends Component {
         waiting: true,
         playing: false,
         initialising: false,
-        coordinates: new firebase.firestore.GeoPoint(0, 0)
+        coordinates: new firebase.firestore.GeoPoint(this.state.position.coords.latitude, this.state.position.coords.longitude)
       })
       .then(docRef => {
         geoDb
@@ -80,7 +95,7 @@ class Lobby extends Component {
             id: userId,
             name: username,
             sonar: false,
-            coordinates: new firebase.firestore.GeoPoint(0, 0)
+            coordinates: new firebase.firestore.GeoPoint(this.state.position.coords.latitude, this.state.position.coords.longitude)
           })
           .then(() => this.setState({ matchId: docRef.id }))
           .catch(e => console.log(`Error adding ${username} to match. ${e}`));
@@ -132,58 +147,62 @@ class Lobby extends Component {
         >
           <h1>How to play</h1>
           <Rules />
-          <h1>Create a game</h1>
-          <Box
-            pad="medium"
-            border={{ color: "brand", size: "large" }}
-            elevation="medium"
-            round="large"
-            width="medium"
-            align="center"
-          >
-            <Form
-              style={{ margin: "1.5em 1.5em 0 1.5em " }}
-              onSubmit={this.handleSubmit}
-            >
-              <FormField
-                type="password"
-                name="password"
-                label="password"
-                onChange={this.handleInput}
-              />
-              <Button type="submit" primary label="Create game" />
-            </Form>
-          </Box>
-          <Box width="medium" align="center">
-            {matches && <h1>Join a game</h1>}
-            {matches &&
-              matches.map(game => {
-                return (
-                  <Box
-                    key={game.matchId}
-                    pad="small"
-                    border={{ color: "primary", size: "large" }}
-                    elevation="small"
-                    round="large"
-                    width="medium"
-                    align="center"
-                    direction="row-responsive"
-                    style={{ marginTop: "1.5em" }}
-                  >
-                    <h3 style={{ margin: "auto" }}>
-                      {"created by " + game.admin.name} <br />
-                    </h3>
-                    <Button
-                      onClick={() =>
-                        this.joinMatch(game.matchId, UID, username)
-                      }
-                      primary
-                      label="Join"
-                    />
-                  </Box>
-                );
-              })}
-          </Box>
+          {this.state.position && (
+            <>
+              <h1>Create a game</h1>
+              <Box
+                pad="medium"
+                border={{ color: "brand", size: "large" }}
+                elevation="medium"
+                round="large"
+                width="medium"
+                align="center"
+              >
+                <Form
+                  style={{ margin: "1.5em 1.5em 0 1.5em " }}
+                  onSubmit={this.handleSubmit}
+                >
+                  <FormField
+                    type="password"
+                    name="password"
+                    label="password"
+                    onChange={this.handleInput}
+                  />
+                  <Button type="submit" primary label="Create game" />
+                </Form>
+              </Box>
+              <Box width="medium" align="center">
+                {matches.length >= 1 ? <h1>Join a game</h1> : <p>No other games within 1km</p>}
+                {matches &&
+                  matches.map(game => {
+                    return (
+                      <Box
+                        key={game.matchId}
+                        pad="small"
+                        border={{ color: "primary", size: "large" }}
+                        elevation="small"
+                        round="large"
+                        width="medium"
+                        align="center"
+                        direction="row-responsive"
+                        style={{ marginTop: "1.5em" }}
+                      >
+                        <h3 style={{ margin: "auto" }}>
+                          {"created by " + game.admin.name} <br />
+                        </h3>
+                        <Button
+                          onClick={() =>
+                            this.joinMatch(game.matchId, UID, username)
+                          }
+                          primary
+                          label="Join"
+                        />
+                      </Box>
+                    );
+                  })}
+              </Box>
+            </>
+          )}
         </Box>
       );
     }

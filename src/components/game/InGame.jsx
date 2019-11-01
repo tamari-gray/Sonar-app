@@ -11,8 +11,7 @@ import {
   playersRef,
   sonardPlayersRef,
   taggedPlayersRef,
-  finishedMatchRef,
-  playerRefExists
+  finishedMatchRef
 } from "../../firebase";
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
@@ -27,6 +26,8 @@ let DBgetMatch = null;
 let DBwatchAllPlayers = null;
 let DBwatchTaggedPlayers = null;
 let DBwatchPlayersJoin = null;
+
+let DBJoinedPlayers = [];
 
 //timers
 let initTimerId = null;
@@ -274,10 +275,7 @@ class InGame extends Component {
         // check if game is in waiting phase
         if (doc.data().waiting === true) {
           this.setState({ waiting: true });
-          if (doc.data().admin.id === this.props.user.UID) {
-            this.watchPlayersJoin();
-            // this.setBoundary()
-          }
+          this.watchPlayersJoin();
         } else if (doc.data().waiting === false) {
           this.setState({ waiting: false });
         }
@@ -286,6 +284,7 @@ class InGame extends Component {
         if (doc.data().initialising) {
           this.setState({ initialising: true });
           this.startInitialiseTimer();
+          this.removeJoinedPlayers();
           doc.data().boundary && this.setBoundary(doc.data().boundary)
 
         } else if (doc.data().initialising === false) {
@@ -299,6 +298,10 @@ class InGame extends Component {
 
           this.watchForTaggedPlayers();
           this.watchForPlayerSonars();
+
+          // stop watching for players joining
+          DBwatchPlayersJoin && DBwatchPlayersJoin();
+          DBwatchPlayersJoin = null;
 
           //if user refreshes tab reset boundary
           map && this.state.boundary === null && doc.data().boundary && this.setBoundary(doc.data().boundary)
@@ -359,7 +362,6 @@ class InGame extends Component {
     });
   };
   adminSetBoundary = () => {
-    // if (this.state.waiting) {
     console.log("setting boundary")
     let boundaryMoving = false
     boundary.on({
@@ -376,8 +378,6 @@ class InGame extends Component {
           )
       }
     });
-
-    // }
   }
   setBoundary = (pos) => {
     this.setState({ boundary: pos })
@@ -398,14 +398,53 @@ class InGame extends Component {
   }
   watchPlayersJoin = () => {
     DBwatchPlayersJoin = playersRef(this.props.matchId).onSnapshot(snap => {
-      const size = snap.size; // will return the collection size
-      console.log("player joined, total = ", size);
-      if (size > 1) {
-        this.setState({
-          playersJoined: size,
-          showPlayBtn: true
-        });
+      if (this.state.admin) {
+        const size = snap.size; // will return the collection size
+        console.log("player joined, total = ", size);
+        if (size > 1) {
+          this.setState({
+            playersJoined: size,
+            showPlayBtn: true
+          });
+        }
       }
+
+      snap.forEach(doc => {
+
+        if (doc.data().id !== this.props.user.UID) {
+
+          const player = doc.data()
+
+          // check if they are on map
+          const alreadyOnMap = DBJoinedPlayers.find(p => p.id === player.id)
+          console.log("alreadyOnMap", alreadyOnMap)
+
+
+          const pos = [player.coordinates._lat, player.coordinates._long]
+          console.log("player", player)
+          console.log(pos)
+
+          // update position
+          if (alreadyOnMap) {
+            alreadyOnMap.marker.setLatLng(pos)
+          } else {
+            console.log("setting joined player marker")
+            const marker = L.circle(pos, {
+              color: "red",
+              fillColor: "green",
+              fillOpacity: 0.5,
+              radius: 5
+            })
+              .addTo(map)
+              .bindPopup(`${player.name}`)
+              .openPopup()
+            DBJoinedPlayers.push({
+              id: player.id,
+              marker
+            })
+          }
+        }
+      })
     });
 
     if (this.state.playing) {
@@ -413,6 +452,9 @@ class InGame extends Component {
       DBwatchPlayersJoin = null;
     }
   };
+  removeJoinedPlayers = () => {
+    DBJoinedPlayers.forEach(p => map.removeLayer(p.marker))
+  }
   deleteMatch = () => {
     matchRef(this.props.matchId)
       .delete()
@@ -465,7 +507,9 @@ class InGame extends Component {
       this.state.myPosition.lng
     ); // this players pos
 
-    const query = playersRef(this.props.matchId).near({ center, radius: 0.02 });
+    const radius = 0.025 // 2.5m
+
+    const query = playersRef(this.props.matchId).near({ center, radius });
 
     query.get().then(value => {
       const geoQuery = []
@@ -617,7 +661,7 @@ class InGame extends Component {
     }, 5000);
   };
   sendSonar = () => {
-    this.setState({sentSonar: true})
+    this.setState({ sentSonar: true })
     playersRef(this.props.matchId)
       .where("tagger", "==", true)
       .get()
@@ -922,13 +966,13 @@ class InGame extends Component {
             sentSonar ? (
               <Alert message={`Sonar sent. Tagger's can see your position! `} timer={true} clear={() => this.setState({ sentSonar: null })} />
             ) : (
-              <Button
-                primary
-                style={{ padding: "0.8em" }}
-                onClick={this.sendSonar}
-                label="send sonar"
-              />
-            )
+                <Button
+                  primary
+                  style={{ padding: "0.8em" }}
+                  onClick={this.sendSonar}
+                  label="send sonar"
+                />
+              )
           )}
           {imTagger && playing && (
             <Button
