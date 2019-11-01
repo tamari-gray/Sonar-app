@@ -67,8 +67,18 @@ class InGame extends Component {
       }, 10000);
     });
     if (this.props) {
-      this.getMatch(); // toggle play btn
-      this.initMap();
+      matchRef(this.props.matchId)
+        .get()
+        .then(doc => {
+          if (doc.data().admin.id === this.props.user.UID) {
+            this.setState({ admin: true })
+          }
+        })
+        .then(() => {
+          this.initMap();
+        })
+
+        this.getMatch(); // toggle play btn
     }
   }
   startTimer = duration => {
