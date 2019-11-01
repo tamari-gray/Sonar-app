@@ -11,8 +11,7 @@ import {
   playersRef,
   sonardPlayersRef,
   taggedPlayersRef,
-  finishedMatchRef,
-  playerRefExists
+  finishedMatchRef
 } from "../../firebase";
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
@@ -465,7 +464,9 @@ class InGame extends Component {
       this.state.myPosition.lng
     ); // this players pos
 
-    const query = playersRef(this.props.matchId).near({ center, radius: 0.02 });
+    const radius = 0.025 // 2.5m
+
+    const query = playersRef(this.props.matchId).near({ center, radius });
 
     query.get().then(value => {
       const geoQuery = []
