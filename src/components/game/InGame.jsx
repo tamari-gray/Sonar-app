@@ -362,7 +362,6 @@ class InGame extends Component {
     });
   };
   adminSetBoundary = () => {
-    // if (this.state.waiting) {
     console.log("setting boundary")
     let boundaryMoving = false
     boundary.on({
@@ -379,8 +378,6 @@ class InGame extends Component {
           )
       }
     });
-
-    // }
   }
   setBoundary = (pos) => {
     this.setState({ boundary: pos })
