@@ -158,7 +158,7 @@ class InGame extends Component {
         thisUser.setLatLng(newLatLng);
       }
 
-      if (boundary === null && map !== null ) {
+      if (boundary === null && map !== null && this.state.admin ) {
         console.log("setting default boundary pos")
         // set default boundary
         boundary = L.circle(
@@ -296,6 +296,8 @@ class InGame extends Component {
           this.watchForTaggedPlayers();
           this.watchForPlayerSonars();
 
+          //if user refreshes tab reset boundary
+          this.state.boundary === null && doc.data().boundary && this.setBoundary(doc.data().boundary)
 
         } else if (doc.data().playing === false) {
           this.setState({ playing: false });
@@ -374,6 +376,8 @@ class InGame extends Component {
     // }
   }
   setBoundary = (pos) => {
+    this.setState({boundary: pos})
+
     console.log("setting boundary from db", pos)
     boundary && map.removeLayer(boundary)
     boundary = L.circle(
@@ -634,7 +638,7 @@ class InGame extends Component {
             .addTo(map)
             .bindPopup("Tagger")
             .openPopup();
-          map.setView([this.state.boundary.lat, this.state.boundary.lng], 17);
+          map.setView(this.state.boundary, 17);
           setTimeout(() => {
             if (!this.state.finished && marker) {
               map.removeLayer(marker);
@@ -717,7 +721,7 @@ class InGame extends Component {
         if (!this.state.finished && marker) {
           console.log("removing just sonard player marker");
           map.removeLayer(marker);
-          map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
+          this.state.boundary && map.setView([this.state.boundary.lat, this.state.boundary.lng], 19);
         }
       }, 5000);
     }
