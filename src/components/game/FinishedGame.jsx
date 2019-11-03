@@ -85,7 +85,7 @@ class FinishedGame extends Component {
               >
                 <Heading>Its a draw!</Heading>
                 {draw.map(p => {
-                  return <Heading>{p.name} won</Heading>;
+                  return <Heading key={p.name}>{p.name} won</Heading>;
                 })}
               </Box>
             )}
