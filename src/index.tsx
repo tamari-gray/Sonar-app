@@ -6,7 +6,10 @@ import { PersistGate } from "redux-persist/lib/integration/react"
 
 import './index.css';
 import App from './components/App';
+
 import * as serviceWorker from './serviceWorker'
+
+require('dotenv').config()
 
 document.addEventListener('DOMContentLoaded', () => {
   render(

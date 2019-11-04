@@ -135,7 +135,7 @@ class InGame extends Component {
       zoomControl: true
     }).fitWorld();
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    L.tileLayer(process.env.REACT_APP_OPEN_STREET_MAP, {
       detectRetina: true,
       attribution:
         '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
@@ -586,7 +586,7 @@ class InGame extends Component {
       aboutToTag.length === 0 && this.setState({ tagFail: true })
 
       // check if they are last remaining players => win
-      if (this.state.remaining.length === aboutToTag.length) {
+      if (this.state.remaining === aboutToTag.length) {
 
         //check for draw || single winner
         aboutToTag.length > 1 ? this.setDraw(aboutToTag) : this.setWinner(aboutToTag[0])
