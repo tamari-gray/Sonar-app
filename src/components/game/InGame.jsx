@@ -215,7 +215,7 @@ class InGame extends Component {
     if (this.state.waiting) {
       // if admin end the game
       if (this.state.admin) {
-        this.endGame()
+        this.quitGame()
       } else {
         // if they are normal player then remove them from game
         playerRef(this.props.matchId, this.props.user.UID)
