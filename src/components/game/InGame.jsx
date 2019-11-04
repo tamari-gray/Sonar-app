@@ -1,8 +1,8 @@
 import * as firebase from "firebase/app";
 import React, { Component } from "react";
 import { connect } from "react-redux";
-import { Box, Button } from "grommet";
-import { Close } from "grommet-icons";
+import { Box, Button, DropButton } from "grommet";
+import { Close, Help } from "grommet-icons";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -16,6 +16,7 @@ import {
 import routes from "../../routes";
 import { Redirect } from "react-router-dom";
 import Alert from "./Alert";
+import Rules from "./Rules";
 
 let map = null;
 let thisUser = null;
@@ -205,86 +206,108 @@ class InGame extends Component {
 
     map.locate({ maxZoom: 22, watch: true, enableHighAccuracy: true });
   };
+  leaveGame = () => {
+
+  }
   handlePlayerQuit = () => {
     console.log("quitting", this.state.remaining);
-    if (!this.state.imTagger) { // if im a remaining player
-      if (this.state.remaining === 1) { // if im the last remaining player
-        // end game and set this player as winner
-        this.setWinner({ name: this.props.user.username, id: this.props.user.UID })
-      } else if (this.state.remaining > 1) { // if im not the last remaining player
+
+    if (this.state.waiting) {
+      // if admin end the game
+      if (this.state.admin) {
+        this.endGame()
+      } else {
+        // if they are normal player then remove them from game
         playerRef(this.props.matchId, this.props.user.UID)
           .delete()
           .then(() => {
             this.setState({ quit: true });
             console.log("succesfully left game");
-            matchRef(this.props.matchId)
-              .update({
-                quitter: this.props.user.username,
-                remaining: this.state.remaining - 1
-              })
-              .then(() => {
-                console.log(
-                  `updated game that ${this.props.user.username} has quit`
-                );
-              })
-              .catch(e =>
-                console.log(
-                  `error updating game that ${this.props.user.username} has quit`
-                )
-              );
           })
           .catch(e => console.log(`error removing player from match `));
       }
-    } else if (this.state.imTagger) { // if im a tagger
-
-      playersRef(this.props.matchId)
-        .get()
-        .then(snap => {
-          const players = []
-          snap.forEach(doc => {
-            players.push(doc.data())
-          })
-          return players
-        })
-        .then((players) => {
-          // check if im the only tagger 
-          const imLastTagger = players.find(p => p.tagger)
-
-          if (imLastTagger) { // if im the last tagger and there are remaining players
-            // end game and set draw
-            const winners = players.filter(p => p.id !== this.props.user.UID)
-            winners.length > 1 ? this.setDraw(winners) : this.setWinner(winners[0])
-
-          } else { // update that tagger has left, remaining players stay the same
-            playerRef(this.props.matchId, this.props.user.UID)
-              .delete()
-              .then(() => {
-                this.setState({ quit: true });
-                console.log("succesfully left game");
-                matchRef(this.props.matchId)
-                  .update({
-                    quitter: this.props.user.username,
-                  })
-                  .then(() => {
-                    console.log(
-                      `updated game that ${this.props.user.username} has quit`
-                    );
-                  })
-                  .catch(e =>
-                    console.log(
-                      `error updating game that ${this.props.user.username} has quit`
-                    )
+    } else {
+      if (!this.state.imTagger) { // if im a remaining player
+        if (this.state.remaining === 1) { // if im the last remaining player
+          // end game and set this player as winner
+          this.setWinner({ name: this.props.user.username, id: this.props.user.UID })
+        } else if (this.state.remaining > 1) { // if im not the last remaining player
+          playerRef(this.props.matchId, this.props.user.UID)
+            .delete()
+            .then(() => {
+              this.setState({ quit: true });
+              console.log("succesfully left game");
+              matchRef(this.props.matchId)
+                .update({
+                  quitter: this.props.user.username,
+                  remaining: this.state.remaining - 1
+                })
+                .then(() => {
+                  console.log(
+                    `updated game that ${this.props.user.username} has quit`
                   );
-              })
-              .catch(e => console.log(`error removing player from match `));
-          }
-        })
-        .catch(e => console.log(`error getting playersRef ${e}`))
+                })
+                .catch(e =>
+                  console.log(
+                    `error updating game that ${this.props.user.username} has quit`
+                  )
+                );
+            })
+            .catch(e => console.log(`error removing player from match `));
+        }
+      } else if (this.state.imTagger) { // if im a tagger
+
+        playersRef(this.props.matchId)
+          .get()
+          .then(snap => {
+            const players = []
+            snap.forEach(doc => {
+              players.push(doc.data())
+            })
+            return players
+          })
+          .then((players) => {
+            // check if im the only tagger 
+            const imLastTagger = players.find(p => p.tagger)
+
+            if (imLastTagger) { // if im the last tagger and there are remaining players
+              // end game and set draw
+              const winners = players.filter(p => p.id !== this.props.user.UID)
+              winners.length > 1 ? this.setDraw(winners) : this.setWinner(winners[0])
+
+            } else { // update that tagger has left, remaining players stay the same
+              playerRef(this.props.matchId, this.props.user.UID)
+                .delete()
+                .then(() => {
+                  this.setState({ quit: true });
+                  console.log("succesfully left game");
+                  matchRef(this.props.matchId)
+                    .update({
+                      quitter: this.props.user.username,
+                    })
+                    .then(() => {
+                      console.log(
+                        `updated game that ${this.props.user.username} has quit`
+                      );
+                    })
+                    .catch(e =>
+                      console.log(
+                        `error updating game that ${this.props.user.username} has quit`
+                      )
+                    );
+                })
+                .catch(e => console.log(`error removing player from match `));
+            }
+          })
+          .catch(e => console.log(`error getting playersRef ${e}`))
 
 
 
 
+      }
     }
+
+
   };
   putPlayersMarkersOnMap = players => {
     const markers = [];
@@ -952,13 +975,22 @@ class InGame extends Component {
             </div>
           )}
           <Box
-            style={{ position: "fixed", top: "1em", right: "1em", zIndex: 2 }}
+            style={{ position: "fixed", top: "0.5em", right: "0.5em", zIndex: 2 }}
           >
-            <Box round="full" overflow="hidden" background="light-2">
+            <Box elevation="small" round="full" overflow="hidden" background="light-2">
               <Button
                 icon={<Close />}
                 hoverIndicator
                 onClick={() => this.setState({ showQuitOverlay: true })}
+              />
+            </Box>
+            <Box style={{ marginTop: '0.5em' }} elevation="small" round="full" overflow="hidden" background="light-2">
+              <DropButton
+                icon={<Help />}
+                dropAlign={{ top: 'bottom', left: 'left' }}
+                dropContent={
+                  <Rules />
+                }
               />
             </Box>
           </Box>
