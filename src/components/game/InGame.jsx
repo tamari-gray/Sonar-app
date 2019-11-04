@@ -136,7 +136,7 @@ class InGame extends Component {
       zoomControl: true
     }).fitWorld();
 
-    L.tileLayer(process.env.REACT_APP_OPEN_STREET_MAP, {
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       detectRetina: true,
       attribution:
         '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
