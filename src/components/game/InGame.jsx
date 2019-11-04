@@ -586,7 +586,7 @@ class InGame extends Component {
       aboutToTag.length === 0 && this.setState({ tagFail: true })
 
       // check if they are last remaining players => win
-      if (this.state.remaining.length === aboutToTag.length) {
+      if (this.state.remaining === aboutToTag.length) {
 
         //check for draw || single winner
         aboutToTag.length > 1 ? this.setDraw(aboutToTag) : this.setWinner(aboutToTag[0])
