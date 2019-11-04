@@ -210,7 +210,7 @@ class InGame extends Component {
     if (!this.state.imTagger) { // if im a remaining player
       if (this.state.remaining === 1) { // if im the last remaining player
         // end game and set this player as winner
-        this.setWinner({ name: this.props.user, id: this.props.user.UID })
+        this.setWinner({ name: this.props.user.username, id: this.props.user.UID })
       } else if (this.state.remaining > 1) { // if im not the last remaining player
         playerRef(this.props.matchId, this.props.user.UID)
           .delete()
@@ -235,7 +235,6 @@ class InGame extends Component {
           })
           .catch(e => console.log(`error removing player from match `));
       }
-      this.endGame();
     } else if (this.state.imTagger) { // if im a tagger
 
       playersRef(this.props.matchId)
