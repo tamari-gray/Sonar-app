@@ -940,7 +940,7 @@ class InGame extends Component {
                 pad="medium"
                 background="light-2"
                 style={{
-                  height: "20vh",
+                  height: "25vh",
                   width: "60vw",
                   position: "fixed",
                   left: "50%",
@@ -961,7 +961,7 @@ class InGame extends Component {
                   <Button
                     hoverIndicator
                     primary
-                    label="return to game"
+                    label="Back"
                     onClick={() => this.setState({ showQuitOverlay: false })}
                   />
                   <Button
