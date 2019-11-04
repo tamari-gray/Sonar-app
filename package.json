@@ -40,6 +40,8 @@
     "@types/react-dom": "16.8.5",
     "@types/react-redux": "^7.1.1",
     "@types/react-router-dom": "^4.3.4",
+    "dotenv": "^8.2.0",
+    "dotenv-webpack": "^1.7.0",
     "firebase": "^6.6.1",
     "grommet": "^2.7.4",
     "polished": "^3.4.1",
