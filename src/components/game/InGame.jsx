@@ -957,6 +957,7 @@ class InGame extends Component {
                   direction="row"
                   align="center"
                   justify="between"
+                  round
                 >
                   <Button
                     hoverIndicator
