@@ -253,7 +253,7 @@ class InGame extends Component {
           if (imLastTagger) { // if im the last tagger and there are remaining players
             // end game and set draw
             const winners = players.filter(p => p.id !== this.props.user.UID)
-            winners.length > 1 ? this.setDraw(winners) : this.setWinner(winners)
+            winners.length > 1 ? this.setDraw(winners) : this.setWinner(winners[0])
 
           } else { // update that tagger has left, remaining players stay the same
             playerRef(this.props.matchId, this.props.user.UID)
