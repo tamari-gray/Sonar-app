@@ -1,7 +1,7 @@
 import * as firebase from "firebase/app";
 import React, { Component } from "react";
 import { connect } from "react-redux";
-import { Box, Form, FormField, Button } from "grommet";
+import { Box, Form, FormField, Button, DropButton } from "grommet";
 import { Redirect } from "react-router-dom";
 import { geoDb } from "../../firebase";
 import Rules from "./Rules";
@@ -145,8 +145,7 @@ class Lobby extends Component {
           pad="small"
           gap="medium"
         >
-          <h1>How to play</h1>
-          <Rules />
+          
           {this.state.position && (
             <>
               <h1>Create a game</h1>
