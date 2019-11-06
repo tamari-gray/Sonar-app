@@ -112,7 +112,7 @@ class InGame extends Component {
     }, 1000);
   };
   startInitialiseTimer = () => {
-    let timer = 5;
+    let timer = 59;
     initTimerId = setInterval(() => {
       timer = timer - 1;
       this.setState({
