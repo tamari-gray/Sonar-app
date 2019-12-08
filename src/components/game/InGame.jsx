@@ -133,7 +133,8 @@ class InGame extends Component {
       zoom: 22,
       maxZoomLevel: 22,
       maxNativeZoom: 22,
-      zoomControl: true
+      zoomControl: true,
+      enableHighAccuracy: true
     }).fitWorld();
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -1039,9 +1040,9 @@ class InGame extends Component {
               {`you may hunt players in ${initialisingTimer} seconds`}
             </p>
           )}
-          {!imTagger && playing && (
+          {imTagger && playing && (
             sentSonar ? (
-              <Alert message={`Sonar sent. Tagger's can see your position! `} timer={true} clear={() => this.setState({ sentSonar: null })} />
+              <Alert message={`Sonar sent. players can see your latest position! `} timer={true} clear={() => this.setState({ sentSonar: null })} />
             ) : (
                 <Button
                   primary
