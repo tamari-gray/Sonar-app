@@ -112,7 +112,7 @@ class InGame extends Component {
     }, 1000);
   };
   startInitialiseTimer = () => {
-    let timer = 59;
+    let timer = 10;
     initTimerId = setInterval(() => {
       timer = timer - 1;
       this.setState({
@@ -590,7 +590,7 @@ class InGame extends Component {
       this.state.myPosition.lng
     ); // this players pos
 
-    const radius = 0.025 // 2.5m
+    const radius = 0.05 // 5m
 
     const query = playersRef(this.props.matchId).near({ center, radius });
 
@@ -827,12 +827,12 @@ class InGame extends Component {
         radius: 2.5
       })
         .addTo(map)
-        .bindPopup(`player used sonar`)
+        .bindPopup(`Tagger used sonar`)
         .openPopup();
-      console.log("set just sonard player marker");
+      console.log("set just sonard tagger marker");
       setTimeout(() => {
         if (!this.state.finished && marker) {
-          console.log("removing just sonard player marker");
+          console.log("removing just sonard tagger marker");
           map.removeLayer(marker);
           this.state.boundary && map.setView(this.state.boundary, 19);
         }
