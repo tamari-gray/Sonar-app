@@ -1,5 +1,6 @@
 # Sonar
 > designed & developed by Tamari Gray
+
 lets play spotlight!
 
 Sonar is a browser based app created to ignite the inner child in us. Imagine hide and seek, but everone has abilities...
